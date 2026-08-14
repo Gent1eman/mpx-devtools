@@ -9,9 +9,11 @@
   },
   "scripts": {
     "packages:list": "pnpm --recursive list --depth -1",
-    "typecheck": "tsc --build"
+    "typecheck": "tsc --build",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
   }
 }
