@@ -1,0 +1,27 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .: {}
+
+  packages/babel-plugin: {}
+
+  packages/cli: {}
+
+  packages/protocol: {}
+
+  packages/runtime: {}
+
+  packages/server: {}
+
+  packages/source-mapping: {}
+
+  packages/ui: {}
+
+  packages/vscode: {}
+
+  packages/webpack-plugin: {}
