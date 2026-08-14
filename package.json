@@ -8,6 +8,10 @@
     "node": ">=20"
   },
   "scripts": {
-    "packages:list": "pnpm --recursive list --depth -1"
+    "packages:list": "pnpm --recursive list --depth -1",
+    "typecheck": "tsc --build"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
   }
 }

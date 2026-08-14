@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/protocol" },
+    { "path": "./packages/source-mapping" },
+    { "path": "./packages/babel-plugin" },
+    { "path": "./packages/webpack-plugin" },
+    { "path": "./packages/runtime" },
+    { "path": "./packages/server" },
+    { "path": "./packages/ui" },
+    { "path": "./packages/vscode" },
+    { "path": "./packages/cli" }
+  ]
+}
