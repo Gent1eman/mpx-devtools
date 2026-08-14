@@ -35,10 +35,11 @@
 
 ### T0002：建立统一 TypeScript 配置
 
-- [ ] 增加根 `tsconfig` 和包级继承配置。
+- [x] 增加根 `tsconfig` 和包级继承配置。
 - 交付物：TypeScript 配置文件。
 - 验收：一个最小 TypeScript 文件可在两个 workspace 包中通过类型检查。
 - 依赖：T0001。
+- 实现说明（2026-08-14）：根项目使用 TypeScript project references；全部包继承根基础配置。`protocol` 与 `runtime` 包的最小源码已通过根类型检查。
 
 ### T0003：建立统一测试命令
 
@@ -903,7 +904,7 @@ POC 最终只证明一件事：
 ## 20. 当前进度
 
 ```text
-当前任务：等待 T0001 验收
+当前任务：等待 T0002 验收
 最后完成：T0001 创建 Monorepo 骨架
-下一候选：T0002 建立统一 TypeScript 配置
+下一候选：T0003 建立统一测试命令
 ```
