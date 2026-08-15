@@ -97,3 +97,18 @@ export const PageEventSchema = DebugEventSchema.extend({
 });
 
 export type PageEvent = z.infer<typeof PageEventSchema>;
+
+/** Component lifecycle event names emitted by the runtime. */
+export const ComponentEventTypeSchema = z.enum(['component.create', 'component.destroy']);
+
+export type ComponentEventType = z.infer<typeof ComponentEventTypeSchema>;
+
+/** Base event refined for component lifecycle notifications. */
+export const ComponentEventSchema = DebugEventSchema.extend({
+  type: ComponentEventTypeSchema,
+  pageInstanceId: z.string().trim().min(1),
+  componentInstanceId: z.string().trim().min(1),
+  parentComponentInstanceId: z.string().trim().min(1).optional()
+});
+
+export type ComponentEvent = z.infer<typeof ComponentEventSchema>;

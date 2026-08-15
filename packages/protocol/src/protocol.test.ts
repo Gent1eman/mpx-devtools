@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ComponentEventSchema,
   DebugEventSchema,
   EventPriority,
   isSupportedProtocolVersion,
@@ -102,4 +103,43 @@ describe('page event', () => {
       expect(PageEventSchema.safeParse({ ...pageEventBase, type }).success).toBe(true);
     }
   );
+});
+
+describe('component event', () => {
+  const componentEventBase = {
+    protocolVersion: PROTOCOL_VERSION,
+    eventId: 'event-component-001',
+    sessionId: 'session-001',
+    buildId: 'wx-development-001',
+    target: 'wx',
+    timestamp: 1_725_000_000_000,
+    priority: EventPriority.Normal,
+    pageInstanceId: 'page-001',
+    componentInstanceId: 'component-child-001',
+    parentComponentInstanceId: 'component-parent-001'
+  } as const;
+
+  it('accepts component.create with page and parent component associations', () => {
+    expect(
+      ComponentEventSchema.safeParse({ ...componentEventBase, type: 'component.create' }).success
+    ).toBe(true);
+  });
+
+  it('accepts component.destroy for a page-root component without a parent', () => {
+    const rootComponentEvent = {
+      protocolVersion: componentEventBase.protocolVersion,
+      eventId: componentEventBase.eventId,
+      sessionId: componentEventBase.sessionId,
+      buildId: componentEventBase.buildId,
+      target: componentEventBase.target,
+      timestamp: componentEventBase.timestamp,
+      priority: componentEventBase.priority,
+      pageInstanceId: componentEventBase.pageInstanceId,
+      componentInstanceId: 'component-root-001'
+    };
+
+    expect(
+      ComponentEventSchema.safeParse({ ...rootComponentEvent, type: 'component.destroy' }).success
+    ).toBe(true);
+  });
 });
