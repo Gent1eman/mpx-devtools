@@ -23,6 +23,33 @@ function receiveWelcome(url: string): Promise<string> {
   });
 }
 
+function exchangeSessionHello(url: string, hello: unknown): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const client = new WebSocket(url);
+    const timeout = setTimeout(() => {
+      client.terminate();
+      reject(new Error('Timed out waiting for the session handshake response.'));
+    }, 2_000);
+    let receivedWelcome = false;
+
+    client.once('error', (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+    client.on('message', (message) => {
+      if (!receivedWelcome) {
+        receivedWelcome = true;
+        client.send(JSON.stringify(hello));
+        return;
+      }
+
+      clearTimeout(timeout);
+      client.close();
+      resolve(message.toString());
+    });
+  });
+}
+
 describe('debug server', () => {
   const servers: Array<Awaited<ReturnType<typeof startDebugServer>>> = [];
 
@@ -79,5 +106,43 @@ describe('debug server', () => {
     await expect(receiveWelcome(`ws://127.0.0.1:${address.port}/ws`)).resolves.toBe(
       JSON.stringify({ type: 'server.welcome' })
     );
+  });
+
+  it('accepts a valid session.hello handshake', async () => {
+    const server = await startDebugServer({ port: 0 });
+    servers.push(server);
+    const address = server.server.address();
+
+    if (address === null || typeof address === 'string') {
+      throw new Error('Expected the server to listen on a TCP port.');
+    }
+
+    await expect(
+      exchangeSessionHello(`ws://127.0.0.1:${address.port}/ws`, {
+        type: 'session.hello',
+        protocolVersion: 1,
+        buildId: 'wx-development-001',
+        target: 'wx'
+      })
+    ).resolves.toBe(JSON.stringify({ type: 'session.accepted' }));
+  });
+
+  it('rejects a session.hello handshake with an unsupported protocol version', async () => {
+    const server = await startDebugServer({ port: 0 });
+    servers.push(server);
+    const address = server.server.address();
+
+    if (address === null || typeof address === 'string') {
+      throw new Error('Expected the server to listen on a TCP port.');
+    }
+
+    await expect(
+      exchangeSessionHello(`ws://127.0.0.1:${address.port}/ws`, {
+        type: 'session.hello',
+        protocolVersion: 0,
+        buildId: 'wx-development-001',
+        target: 'wx'
+      })
+    ).resolves.toBe(JSON.stringify({ type: 'session.rejected', reason: 'invalid-session-hello' }));
   });
 });

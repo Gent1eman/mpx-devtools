@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import websocket from '@fastify/websocket';
+import { PROTOCOL_VERSION, SessionHelloSchema } from '@mpxjs/debug-protocol';
 
 export const DEBUG_SERVER_VERSION = '0.0.0';
 
@@ -31,6 +32,11 @@ const DEBUG_HOME_HTML = `<!doctype html>
 </html>`;
 
 const DEBUG_SERVER_WELCOME = JSON.stringify({ type: 'server.welcome' });
+const SESSION_ACCEPTED = JSON.stringify({ type: 'session.accepted' });
+const SESSION_REJECTED = JSON.stringify({
+  type: 'session.rejected',
+  reason: 'invalid-session-hello'
+});
 
 /** Creates the local debug HTTP server without opening a listening socket. */
 export function createDebugServer(options: DebugServerOptions = {}): FastifyInstance {
@@ -51,6 +57,27 @@ export function createDebugServer(options: DebugServerOptions = {}): FastifyInst
 
     instance.get('/ws', { websocket: true }, (socket) => {
       socket.send(DEBUG_SERVER_WELCOME);
+      socket.on('message', (rawMessage) => {
+        let message: unknown;
+
+        try {
+          message = JSON.parse(rawMessage.toString());
+        } catch {
+          socket.send(SESSION_REJECTED);
+          socket.close(1008, 'Invalid session hello.');
+          return;
+        }
+
+        const hello = SessionHelloSchema.safeParse(message);
+
+        if (!hello.success || hello.data.protocolVersion !== PROTOCOL_VERSION) {
+          socket.send(SESSION_REJECTED);
+          socket.close(1008, 'Invalid session hello.');
+          return;
+        }
+
+        socket.send(SESSION_ACCEPTED);
+      });
     });
   });
 

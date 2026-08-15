@@ -10,7 +10,7 @@
   "scripts": {
     "packages:list": "pnpm --recursive list --depth -1",
     "typecheck": "tsc --build",
-    "test": "vitest run",
+    "test": "pnpm typecheck && vitest run",
     "lint": "eslint .",
     "format": "prettier --check .",
     "format:write": "prettier --write ."
