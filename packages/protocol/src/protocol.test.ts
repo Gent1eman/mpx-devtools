@@ -1,11 +1,23 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ProtocolPackageMarker } from './index.js';
+import {
+  isSupportedProtocolVersion,
+  PROTOCOL_VERSION,
+  type ProtocolVersion,
+  type ProtocolVersioned
+} from './index.js';
 
-describe('protocol workspace package', () => {
-  it('can type-check and run a minimal test', () => {
-    const marker: ProtocolPackageMarker = 'protocol';
+describe('protocol version', () => {
+  it('exports the current version as the supported version', () => {
+    const version: ProtocolVersion = PROTOCOL_VERSION;
+    const message: ProtocolVersioned = { protocolVersion: version };
 
-    expect(marker).toBe('protocol');
+    expect(message.protocolVersion).toBe(1);
+    expect(isSupportedProtocolVersion(PROTOCOL_VERSION)).toBe(true);
+  });
+
+  it('rejects unsupported versions', () => {
+    expect(isSupportedProtocolVersion(0)).toBe(false);
+    expect(isSupportedProtocolVersion(2)).toBe(false);
   });
 });
