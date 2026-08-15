@@ -112,3 +112,12 @@ export const ComponentEventSchema = DebugEventSchema.extend({
 });
 
 export type ComponentEvent = z.infer<typeof ComponentEventSchema>;
+
+/** Event emitted when an instrumented Mpx method probe is hit. */
+export const MethodProbeEventSchema = DebugEventSchema.extend({
+  type: z.literal('method'),
+  probeId: z.string().trim().min(1),
+  snapshotId: z.string().trim().min(1).optional()
+});
+
+export type MethodProbeEvent = z.infer<typeof MethodProbeEventSchema>;

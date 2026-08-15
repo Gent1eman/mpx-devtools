@@ -5,6 +5,7 @@ import {
   DebugEventSchema,
   EventPriority,
   isSupportedProtocolVersion,
+  MethodProbeEventSchema,
   PageEventSchema,
   PROTOCOL_VERSION,
   SessionHelloSchema,
@@ -141,5 +142,45 @@ describe('component event', () => {
     expect(
       ComponentEventSchema.safeParse({ ...rootComponentEvent, type: 'component.destroy' }).success
     ).toBe(true);
+  });
+});
+
+describe('method probe event', () => {
+  const methodProbeEventBase = {
+    protocolVersion: PROTOCOL_VERSION,
+    eventId: 'event-probe-001',
+    sessionId: 'session-001',
+    buildId: 'wx-development-001',
+    target: 'wx',
+    timestamp: 1_725_000_000_000,
+    priority: EventPriority.Normal,
+    type: 'method',
+    probeId: 'probe-001'
+  } as const;
+
+  it('accepts a method hit without a snapshot', () => {
+    expect(MethodProbeEventSchema.safeParse(methodProbeEventBase).success).toBe(true);
+  });
+
+  it('accepts a method hit with a snapshot association', () => {
+    expect(
+      MethodProbeEventSchema.safeParse({ ...methodProbeEventBase, snapshotId: 'snapshot-001' })
+        .success
+    ).toBe(true);
+  });
+
+  it('rejects a method hit without probeId', () => {
+    const eventWithoutProbeId = {
+      protocolVersion: methodProbeEventBase.protocolVersion,
+      eventId: methodProbeEventBase.eventId,
+      sessionId: methodProbeEventBase.sessionId,
+      buildId: methodProbeEventBase.buildId,
+      target: methodProbeEventBase.target,
+      timestamp: methodProbeEventBase.timestamp,
+      priority: methodProbeEventBase.priority,
+      type: methodProbeEventBase.type
+    };
+
+    expect(MethodProbeEventSchema.safeParse(eventWithoutProbeId).success).toBe(false);
   });
 });
