@@ -62,7 +62,11 @@ importers:
         specifier: ^3.24.2
         version: 3.24.2
 
-  packages/runtime: {}
+  packages/runtime:
+    dependencies:
+      '@mpxjs/debug-protocol':
+        specifier: workspace:*
+        version: link:../protocol
 
   packages/server:
     dependencies:

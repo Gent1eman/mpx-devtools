@@ -206,9 +206,10 @@
 
 ### T0301：建立 Runtime 核心接口
 
-- [ ] 实现 `initialize`、`emit` 和 `dispose` 空实现。
+- [x] 实现 `initialize`、`emit` 和 `dispose` 空实现。
 - 验收：Runtime 能初始化并安全重复销毁。
 - 依赖：T0103。
+- 实现说明（2026-08-15）：新增 `RuntimeConfig`（target/buildId）与 `MpxDebugRuntime` 接口；`DebugRuntime` 实现 `initialize`（存配置）、`emit`（暂无 Transport 的空实现）、`dispose`（幂等清空）、`isInitialized`。runtime 包新增 `@mpxjs/debug-protocol` 依赖。
 
 ### T0302：实现微信 WebSocket Transport
 
@@ -926,7 +927,7 @@ POC 最终只证明一件事：
 ## 20. 当前进度
 
 ```text
-当前任务：等待 T0210 验收
-最后完成：T0210 将新事件推送给 UI
-下一候选：T0301 建立 Runtime 核心接口
+当前任务：等待 T0301 验收
+最后完成：T0301 建立 Runtime 核心接口
+下一候选：T0302 实现微信 WebSocket Transport
 ```

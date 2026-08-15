@@ -1,5 +1,8 @@
 {
   "name": "@mpxjs/debug-runtime",
   "version": "0.0.0",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "@mpxjs/debug-protocol": "workspace:*"
+  }
 }
