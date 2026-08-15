@@ -1,0 +1,38 @@
+<template>
+  <view class="page">
+    <view class="title">Mpx DevTools minimal example</view>
+    <view class="count">Clicked: {{count}}</view>
+    <button bindtap="increment">Click me</button>
+  </view>
+</template>
+
+<script>
+import { createPage } from '@mpxjs/core';
+
+createPage({
+  data: {
+    count: 0
+  },
+  methods: {
+    increment() {
+      this.count += 1;
+    }
+  }
+});
+</script>
+
+<style>
+.page {
+  padding: 32rpx;
+}
+
+.title {
+  font-size: 36rpx;
+  font-weight: 700;
+  margin-bottom: 24rpx;
+}
+
+.count {
+  margin-bottom: 24rpx;
+}
+</style>

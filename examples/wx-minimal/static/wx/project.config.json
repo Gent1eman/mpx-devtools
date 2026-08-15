@@ -1,0 +1,12 @@
+{
+  "appid": "touristappid",
+  "projectname": "mpx-devtools-wx-minimal",
+  "description": "Minimal Mpx example for Mpx DevTools",
+  "compileType": "miniprogram",
+  "setting": {
+    "es6": false,
+    "postcss": true,
+    "minified": false,
+    "urlCheck": false
+  }
+}

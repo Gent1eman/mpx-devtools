@@ -1,0 +1,19 @@
+{
+  "name": "@mpxjs/debug-example-wx-minimal",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build:wx": "mpx-cli-service build --targets=wx"
+  },
+  "dependencies": {
+    "@mpxjs/core": "^2.10.0"
+  },
+  "devDependencies": {
+    "@mpxjs/mpx-cli-service": "^2.0.0",
+    "@mpxjs/vue-cli-plugin-mpx": "^2.0.0",
+    "@mpxjs/webpack-plugin": "^2.10.0",
+    "@vue/cli-service": "~5.0.0",
+    "process": "^0.11.10",
+    "webpack": "^5.43.0"
+  }
+}
