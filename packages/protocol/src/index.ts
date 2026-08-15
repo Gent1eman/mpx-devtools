@@ -121,3 +121,24 @@ export const MethodProbeEventSchema = DebugEventSchema.extend({
 });
 
 export type MethodProbeEvent = z.infer<typeof MethodProbeEventSchema>;
+
+/** Serialized values are opaque to the protocol until runtime serialization is introduced. */
+export const SerializedValueSchema = z.unknown();
+
+export type SerializedValue = z.infer<typeof SerializedValueSchema>;
+
+/** Values captured at one point in time for a method probe. */
+export const VariableSnapshotSchema = z
+  .object({
+    snapshotId: z.string().trim().min(1),
+    capturedAt: z.number().finite().nonnegative(),
+    probeId: z.string().trim().min(1),
+    arguments: z.record(SerializedValueSchema).optional(),
+    locals: z.record(SerializedValueSchema).optional(),
+    componentState: z.record(SerializedValueSchema).optional(),
+    returnValue: SerializedValueSchema.optional(),
+    error: SerializedValueSchema.optional()
+  })
+  .strict();
+
+export type VariableSnapshot = z.infer<typeof VariableSnapshotSchema>;

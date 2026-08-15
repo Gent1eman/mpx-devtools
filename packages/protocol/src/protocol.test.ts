@@ -10,7 +10,8 @@ import {
   PROTOCOL_VERSION,
   SessionHelloSchema,
   type ProtocolVersion,
-  type ProtocolVersioned
+  type ProtocolVersioned,
+  VariableSnapshotSchema
 } from './index.js';
 
 describe('protocol version', () => {
@@ -182,5 +183,23 @@ describe('method probe event', () => {
     };
 
     expect(MethodProbeEventSchema.safeParse(eventWithoutProbeId).success).toBe(false);
+  });
+});
+
+describe('variable snapshot', () => {
+  const snapshotBase = {
+    snapshotId: 'snapshot-001',
+    capturedAt: 1_725_000_000_000,
+    probeId: 'probe-001'
+  } as const;
+
+  it.each([
+    ['arguments', { arguments: { orderId: 'A-1001' } }],
+    ['locals', { locals: { discount: 20 } }],
+    ['component state', { componentState: { loading: false } }],
+    ['return value', { returnValue: { accepted: true } }],
+    ['error', { error: { message: 'Request failed' } }]
+  ] as const)('distinguishes %s snapshots', (_kind, value) => {
+    expect(VariableSnapshotSchema.safeParse({ ...snapshotBase, ...value }).success).toBe(true);
   });
 });
