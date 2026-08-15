@@ -2,6 +2,8 @@
   "name": "@mpxjs/debug-runtime",
   "version": "0.0.0",
   "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "dependencies": {
     "@mpxjs/debug-protocol": "workspace:*"
   }

@@ -1,9 +1,39 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EventPriority, type DebugEvent } from '@mpxjs/debug-protocol';
 
 import { DebugRuntime, type RuntimeConfig } from './index.js';
+import type { DebugTransport, TransportEvent } from './wechat-transport.js';
 
-const config: RuntimeConfig = { target: 'wx', buildId: 'wx-001' };
+const config: RuntimeConfig = {
+  target: 'wx',
+  buildId: 'wx-001',
+  serverUrl: 'ws://127.0.0.1:4399/ws',
+  token: 'test-token'
+};
+
+function makeFakeTransport() {
+  let listener: ((event: TransportEvent) => void) | null = null;
+  const connect = vi.fn();
+  const send = vi.fn();
+  const close = vi.fn();
+
+  const transport: DebugTransport = {
+    connect: (url) => connect(url),
+    send: (data) => send(data),
+    close: () => close(),
+    onEvent: (next) => {
+      listener = next;
+    }
+  };
+
+  return {
+    transport,
+    connect,
+    send,
+    close,
+    emit: (event: TransportEvent) => listener?.(event)
+  };
+}
 
 function makeEvent(): DebugEvent {
   return {
@@ -18,21 +48,26 @@ function makeEvent(): DebugEvent {
   };
 }
 
-describe('DebugRuntime', () => {
+describe('DebugRuntime lifecycle', () => {
   it('starts uninitialized', () => {
-    expect(new DebugRuntime().isInitialized()).toBe(false);
+    const runtime = new DebugRuntime(makeFakeTransport().transport);
+
+    expect(runtime.isInitialized()).toBe(false);
   });
 
-  it('initializes with a config', () => {
-    const runtime = new DebugRuntime();
+  it('initializes with a config and connects to the server', () => {
+    const fake = makeFakeTransport();
+    const runtime = new DebugRuntime(fake.transport);
 
     runtime.initialize(config);
 
     expect(runtime.isInitialized()).toBe(true);
+    expect(fake.connect).toHaveBeenCalledWith('ws://127.0.0.1:4399/ws');
   });
 
   it('can be disposed safely, including multiple times', () => {
-    const runtime = new DebugRuntime();
+    const fake = makeFakeTransport();
+    const runtime = new DebugRuntime(fake.transport);
     runtime.initialize(config);
 
     runtime.dispose();
@@ -43,17 +78,20 @@ describe('DebugRuntime', () => {
   });
 
   it('can be re-initialized after disposal', () => {
-    const runtime = new DebugRuntime();
+    const fake = makeFakeTransport();
+    const runtime = new DebugRuntime(fake.transport);
 
     runtime.initialize(config);
     runtime.dispose();
     runtime.initialize(config);
 
     expect(runtime.isInitialized()).toBe(true);
+    expect(fake.connect).toHaveBeenCalledTimes(2);
   });
 
   it('emit is a safe no-op before initialization and after disposal', () => {
-    const runtime = new DebugRuntime();
+    const fake = makeFakeTransport();
+    const runtime = new DebugRuntime(fake.transport);
     const event = makeEvent();
 
     expect(() => runtime.emit(event)).not.toThrow();
@@ -63,5 +101,64 @@ describe('DebugRuntime', () => {
 
     runtime.dispose();
     expect(() => runtime.emit(event)).not.toThrow();
+  });
+});
+
+describe('DebugRuntime handshake', () => {
+  it('sends session.hello when the transport opens', () => {
+    const fake = makeFakeTransport();
+    const runtime = new DebugRuntime(fake.transport);
+
+    runtime.initialize(config);
+    fake.emit({ type: 'open' });
+
+    expect(fake.send).toHaveBeenCalledWith(
+      JSON.stringify({
+        type: 'session.hello',
+        protocolVersion: 1,
+        token: 'test-token',
+        buildId: 'wx-001',
+        target: 'wx'
+      })
+    );
+  });
+
+  it('stores the session id after a successful handshake', () => {
+    const fake = makeFakeTransport();
+    const runtime = new DebugRuntime(fake.transport);
+
+    runtime.initialize(config);
+    expect(runtime.getSessionId()).toBeNull();
+
+    fake.emit({
+      type: 'message',
+      data: JSON.stringify({ type: 'session.accepted', sessionId: 'session-123' })
+    });
+
+    expect(runtime.getSessionId()).toBe('session-123');
+  });
+
+  it('ignores messages that are not a session.accepted', () => {
+    const fake = makeFakeTransport();
+    const runtime = new DebugRuntime(fake.transport);
+
+    runtime.initialize(config);
+    fake.emit({
+      type: 'message',
+      data: JSON.stringify({ type: 'session.rejected', reason: 'invalid-session-token' })
+    });
+
+    expect(runtime.getSessionId()).toBeNull();
+  });
+
+  it('does not process transport events after disposal', () => {
+    const fake = makeFakeTransport();
+    const runtime = new DebugRuntime(fake.transport);
+
+    runtime.initialize(config);
+    runtime.dispose();
+    fake.emit({ type: 'open' });
+
+    expect(fake.send).not.toHaveBeenCalled();
   });
 });

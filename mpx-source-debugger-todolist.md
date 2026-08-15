@@ -213,9 +213,10 @@
 
 ### T0302：实现微信 WebSocket Transport
 
-- [ ] 使用 `wx.connectSocket` 连接 Server。
+- [x] 使用 `wx.connectSocket` 连接 Server。
 - 验收：微信开发者工具中的示例项目可以完成握手。
 - 依赖：T0204、T0301。
+- 实现说明（2026-08-15）：新增 `WeChatTransport`（封装 `wx.connectSocket`/`sendSocketMessage`/`onSocket*`，归一化为 open/message/close/error 事件，实现 `DebugTransport` 接口）；`DebugRuntime` 构造函数注入 `DebugTransport`，`initialize` 连接并在 open 时发送 `session.hello`，收到 `session.accepted` 后保存 `sessionId`（`getSessionId` 可查）。`RuntimeConfig` 增加 `serverUrl`/`token`。用假 wx/假 transport 完成单测；真实握手需在微信开发者工具中验证。
 
 ### T0303：实现 Runtime 事件队列
 
@@ -927,7 +928,7 @@ POC 最终只证明一件事：
 ## 20. 当前进度
 
 ```text
-当前任务：等待 T0301 验收
-最后完成：T0301 建立 Runtime 核心接口
-下一候选：T0302 实现微信 WebSocket Transport
+当前任务：等待 T0302 验收
+最后完成：T0302 实现微信 WebSocket Transport
+下一候选：T0303 实现 Runtime 事件队列
 ```
