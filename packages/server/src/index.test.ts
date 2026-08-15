@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws';
 
 import { createDebugServer, startDebugServer } from './index.js';
@@ -46,6 +46,40 @@ function exchangeSessionHello(url: string, hello: unknown): Promise<string> {
       clearTimeout(timeout);
       client.close();
       resolve(message.toString());
+    });
+  });
+}
+
+interface EstablishedSession {
+  client: WebSocket;
+  accepted: { type: string; sessionId: string };
+}
+
+function establishSession(url: string, hello: unknown): Promise<EstablishedSession> {
+  return new Promise((resolve, reject) => {
+    const client = new WebSocket(url);
+    const timeout = setTimeout(() => {
+      client.terminate();
+      reject(new Error('Timed out waiting for the session handshake response.'));
+    }, 2_000);
+    let receivedWelcome = false;
+
+    client.once('error', (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+    client.on('message', (message) => {
+      if (!receivedWelcome) {
+        receivedWelcome = true;
+        client.send(JSON.stringify(hello));
+        return;
+      }
+
+      clearTimeout(timeout);
+      resolve({
+        client,
+        accepted: JSON.parse(message.toString()) as EstablishedSession['accepted']
+      });
     });
   });
 }
@@ -117,15 +151,83 @@ describe('debug server', () => {
       throw new Error('Expected the server to listen on a TCP port.');
     }
 
-    await expect(
-      exchangeSessionHello(`ws://127.0.0.1:${address.port}/ws`, {
+    const accepted = JSON.parse(
+      await exchangeSessionHello(`ws://127.0.0.1:${address.port}/ws`, {
         type: 'session.hello',
         protocolVersion: 1,
         token: 'test-token',
         buildId: 'wx-development-001',
         target: 'wx'
       })
-    ).resolves.toBe(JSON.stringify({ type: 'session.accepted' }));
+    );
+
+    expect(accepted.type).toBe('session.accepted');
+    expect(accepted.sessionId).toBeTypeOf('string');
+    expect(accepted.sessionId.length).toBeGreaterThan(0);
+  });
+
+  it('registers a connected session served by GET /api/session', async () => {
+    const server = await startDebugServer({ port: 0, token: 'test-token' });
+    servers.push(server);
+    const address = server.server.address();
+
+    if (address === null || typeof address === 'string') {
+      throw new Error('Expected the server to listen on a TCP port.');
+    }
+
+    const { client, accepted } = await establishSession(`ws://127.0.0.1:${address.port}/ws`, {
+      type: 'session.hello',
+      protocolVersion: 1,
+      token: 'test-token',
+      buildId: 'wx-development-001',
+      target: 'wx'
+    });
+
+    const response = await server.inject({ method: 'GET', url: '/api/session' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      sessionId: accepted.sessionId,
+      buildId: 'wx-development-001',
+      target: 'wx',
+      connected: true
+    });
+    expect(response.json().lastActivityAt).toBeTypeOf('number');
+    expect(response.json().connectedAt).toBeTypeOf('number');
+
+    client.close();
+  });
+
+  it('marks the session as disconnected when the socket closes', async () => {
+    const server = await startDebugServer({ port: 0, token: 'test-token' });
+    servers.push(server);
+    const address = server.server.address();
+
+    if (address === null || typeof address === 'string') {
+      throw new Error('Expected the server to listen on a TCP port.');
+    }
+
+    const { client } = await establishSession(`ws://127.0.0.1:${address.port}/ws`, {
+      type: 'session.hello',
+      protocolVersion: 1,
+      token: 'test-token',
+      buildId: 'wx-development-001',
+      target: 'wx'
+    });
+
+    const closed = new Promise<void>((resolve) => {
+      client.once('close', () => resolve());
+    });
+
+    client.close();
+    await closed;
+
+    await vi.waitFor(async () => {
+      const response = await server.inject({ method: 'GET', url: '/api/session' });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ connected: false });
+    });
   });
 
   it('rejects a session.hello handshake with the wrong token', async () => {

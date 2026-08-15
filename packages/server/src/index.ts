@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
 import websocket from '@fastify/websocket';
 import { PROTOCOL_VERSION, SessionHelloSchema } from '@mpxjs/debug-protocol';
+import { createSessionId, SessionManager } from './session.js';
 
 export const DEBUG_SERVER_VERSION = '0.0.0';
 
@@ -40,7 +41,6 @@ const DEBUG_HOME_HTML = `<!doctype html>
 </html>`;
 
 const DEBUG_SERVER_WELCOME = JSON.stringify({ type: 'server.welcome' });
-const SESSION_ACCEPTED = JSON.stringify({ type: 'session.accepted' });
 const SESSION_REJECTED = JSON.stringify({
   type: 'session.rejected',
   reason: 'invalid-session-hello'
@@ -60,6 +60,7 @@ export function createDebugServer(options: DebugServerOptions = {}): FastifyInst
   const server = Fastify({ logger: false });
   const version = options.version ?? DEBUG_SERVER_VERSION;
   const token = options.token ?? generateSessionToken();
+  const sessions = new SessionManager();
 
   server.decorate('debugToken', token);
 
@@ -72,12 +73,21 @@ export function createDebugServer(options: DebugServerOptions = {}): FastifyInst
     version
   }));
 
+  server.get('/api/session', async () => sessions.get());
+
   server.register(async (instance) => {
     await instance.register(websocket);
 
     instance.get('/ws', { websocket: true }, (socket) => {
       socket.send(DEBUG_SERVER_WELCOME);
       socket.on('message', (rawMessage) => {
+        const now = Date.now();
+
+        if (sessions.get() !== null) {
+          sessions.touch(now);
+          return;
+        }
+
         let message: unknown;
 
         try {
@@ -102,7 +112,18 @@ export function createDebugServer(options: DebugServerOptions = {}): FastifyInst
           return;
         }
 
-        socket.send(SESSION_ACCEPTED);
+        const session = sessions.register({
+          sessionId: createSessionId(),
+          buildId: hello.data.buildId,
+          target: hello.data.target,
+          now
+        });
+
+        socket.send(JSON.stringify({ type: 'session.accepted', sessionId: session.sessionId }));
+      });
+
+      socket.on('close', () => {
+        sessions.disconnect();
       });
     });
   });
