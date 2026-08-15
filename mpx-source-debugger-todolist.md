@@ -151,7 +151,7 @@
 - [x] 在 Server 上提供 WebSocket 连接。
 - 验收：测试客户端连接成功并收到欢迎消息。
 - 依赖：T0201。
-- 实现说明（2026-08-15）：新增 `/ws` WebSocket Gateway，连接成功后发送 `server.welcome`；使用真实 WebSocket 客户端完成连接与消息测试。
+- 实现说明（2026-08-15）：新增 `/ws` WebSocket Gateway，连接成功后发送 `server.welcome`；使用真实 WebSocket 客户端完成连接与消息测试。Server 包会随根类型检查编译为可启动的本地 JavaScript 模块。
 
 ### T0204：实现会话握手校验
 
