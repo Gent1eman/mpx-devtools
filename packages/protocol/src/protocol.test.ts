@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  DebugEventSchema,
+  EventPriority,
   isSupportedProtocolVersion,
   PROTOCOL_VERSION,
   SessionHelloSchema,
@@ -48,4 +50,32 @@ describe('session.hello', () => {
   it('rejects a blank buildId', () => {
     expect(SessionHelloSchema.safeParse({ ...validHello, buildId: '  ' }).success).toBe(false);
   });
+});
+
+describe('debug event', () => {
+  const validEvent = {
+    protocolVersion: PROTOCOL_VERSION,
+    eventId: 'event-001',
+    sessionId: 'session-001',
+    buildId: 'wx-development-001',
+    target: 'wx',
+    timestamp: 1_725_000_000_000,
+    priority: EventPriority.Normal,
+    type: 'method'
+  } as const;
+
+  it('accepts an event with every required base field', () => {
+    expect(DebugEventSchema.safeParse(validEvent).success).toBe(true);
+  });
+
+  it.each(['eventId', 'sessionId', 'buildId', 'target', 'timestamp'] as const)(
+    'rejects an event without %s',
+    (requiredField) => {
+      const eventWithoutRequiredField = { ...validEvent } as Record<string, unknown>;
+
+      delete eventWithoutRequiredField[requiredField];
+
+      expect(DebugEventSchema.safeParse(eventWithoutRequiredField).success).toBe(false);
+    }
+  );
 });

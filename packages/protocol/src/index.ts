@@ -32,3 +32,47 @@ export const SessionHelloSchema = z
   .strict();
 
 export type SessionHello = z.infer<typeof SessionHelloSchema>;
+
+/** Event delivery priority, from non-droppable critical events to low-priority events. */
+export enum EventPriority {
+  Critical = 0,
+  High = 1,
+  Normal = 2,
+  Low = 3
+}
+
+export const DebugEventTypeSchema = z.enum([
+  'page',
+  'component',
+  'lifecycle',
+  'method',
+  'state',
+  'setData',
+  'network',
+  'error',
+  'render',
+  'probe'
+]);
+
+export type DebugEventType = z.infer<typeof DebugEventTypeSchema>;
+
+/** Base envelope shared by every runtime event sent to the debug server. */
+export const DebugEventSchema = z
+  .object({
+    protocolVersion: z.literal(PROTOCOL_VERSION),
+    eventId: z.string().trim().min(1),
+    sessionId: z.string().trim().min(1),
+    buildId: z.string().trim().min(1),
+    target: DebugTargetSchema,
+    timestamp: z.number().finite().nonnegative(),
+    priority: z.nativeEnum(EventPriority),
+    type: DebugEventTypeSchema,
+    pageInstanceId: z.string().trim().min(1).optional(),
+    componentInstanceId: z.string().trim().min(1).optional(),
+    semanticId: z.string().trim().min(1).optional(),
+    probeId: z.string().trim().min(1).optional(),
+    payload: z.unknown().optional()
+  })
+  .strict();
+
+export type DebugEvent = z.infer<typeof DebugEventSchema>;
