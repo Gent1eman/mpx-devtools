@@ -1,7 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
 import websocket from '@fastify/websocket';
-import { PROTOCOL_VERSION, SessionHelloSchema } from '@mpxjs/debug-protocol';
+import { DebugEventSchema, PROTOCOL_VERSION, SessionHelloSchema } from '@mpxjs/debug-protocol';
+import { EventStore } from './events.js';
 import { createSessionId, SessionManager } from './session.js';
 
 export const DEBUG_SERVER_VERSION = '0.0.0';
@@ -21,6 +22,7 @@ export interface DebugServerHealth {
 declare module 'fastify' {
   interface FastifyInstance {
     debugToken: string;
+    eventStore: EventStore;
   }
 }
 
@@ -49,6 +51,10 @@ const SESSION_TOKEN_REJECTED = JSON.stringify({
   type: 'session.rejected',
   reason: 'invalid-session-token'
 });
+const EVENT_REJECTED = JSON.stringify({
+  type: 'event.rejected',
+  reason: 'invalid-event'
+});
 
 /** Generates a high-entropy token used to authenticate runtime connections. */
 function generateSessionToken(): string {
@@ -61,8 +67,10 @@ export function createDebugServer(options: DebugServerOptions = {}): FastifyInst
   const version = options.version ?? DEBUG_SERVER_VERSION;
   const token = options.token ?? generateSessionToken();
   const sessions = new SessionManager();
+  const events = new EventStore();
 
   server.decorate('debugToken', token);
+  server.decorate('eventStore', events);
 
   server.get('/', async (_request, reply) => {
     return reply.type('text/html; charset=utf-8').send(DEBUG_HOME_HTML);
@@ -84,6 +92,23 @@ export function createDebugServer(options: DebugServerOptions = {}): FastifyInst
         const now = Date.now();
 
         if (sessions.get() !== null) {
+          let event: unknown;
+
+          try {
+            event = JSON.parse(rawMessage.toString());
+          } catch {
+            socket.send(EVENT_REJECTED);
+            return;
+          }
+
+          const parsed = DebugEventSchema.safeParse(event);
+
+          if (!parsed.success) {
+            socket.send(EVENT_REJECTED);
+            return;
+          }
+
+          events.append(parsed.data);
           sessions.touch(now);
           return;
         }

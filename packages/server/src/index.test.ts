@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws';
+import { EventPriority } from '@mpxjs/debug-protocol';
 
 import { createDebugServer, startDebugServer } from './index.js';
 
@@ -81,6 +82,26 @@ function establishSession(url: string, hello: unknown): Promise<EstablishedSessi
         accepted: JSON.parse(message.toString()) as EstablishedSession['accepted']
       });
     });
+  });
+}
+
+function sendAndAwait(client: WebSocket, message: unknown): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      client.terminate();
+      reject(new Error('Timed out waiting for a server message.'));
+    }, 2_000);
+
+    client.once('error', (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+    client.once('message', (data) => {
+      clearTimeout(timeout);
+      resolve(data.toString());
+    });
+
+    client.send(JSON.stringify(message));
   });
 }
 
@@ -279,5 +300,76 @@ describe('debug server', () => {
     expect(firstServer.debugToken).toBeTypeOf('string');
     expect(firstServer.debugToken.length).toBeGreaterThanOrEqual(32);
     expect(firstServer.debugToken).not.toBe(secondServer.debugToken);
+  });
+
+  it('stores a valid debug event received after the handshake', async () => {
+    const server = await startDebugServer({ port: 0, token: 'test-token' });
+    servers.push(server);
+    const address = server.server.address();
+
+    if (address === null || typeof address === 'string') {
+      throw new Error('Expected the server to listen on a TCP port.');
+    }
+
+    const { client, accepted } = await establishSession(`ws://127.0.0.1:${address.port}/ws`, {
+      type: 'session.hello',
+      protocolVersion: 1,
+      token: 'test-token',
+      buildId: 'wx-development-001',
+      target: 'wx'
+    });
+
+    client.send(
+      JSON.stringify({
+        protocolVersion: 1,
+        eventId: 'event-001',
+        sessionId: accepted.sessionId,
+        buildId: 'wx-development-001',
+        target: 'wx',
+        timestamp: 1_725_000_000_000,
+        priority: EventPriority.Normal,
+        type: 'method',
+        probeId: 'probe-001'
+      })
+    );
+
+    await vi.waitFor(() => {
+      const stored = server.eventStore.list();
+
+      expect(stored).toHaveLength(1);
+      expect(stored[0]).toMatchObject({
+        eventId: 'event-001',
+        sessionId: accepted.sessionId,
+        type: 'method'
+      });
+    });
+
+    client.close();
+  });
+
+  it('rejects an invalid debug event with a protocol error', async () => {
+    const server = await startDebugServer({ port: 0, token: 'test-token' });
+    servers.push(server);
+    const address = server.server.address();
+
+    if (address === null || typeof address === 'string') {
+      throw new Error('Expected the server to listen on a TCP port.');
+    }
+
+    const { client } = await establishSession(`ws://127.0.0.1:${address.port}/ws`, {
+      type: 'session.hello',
+      protocolVersion: 1,
+      token: 'test-token',
+      buildId: 'wx-development-001',
+      target: 'wx'
+    });
+
+    await expect(sendAndAwait(client, { type: 'method' })).resolves.toBe(
+      JSON.stringify({ type: 'event.rejected', reason: 'invalid-event' })
+    );
+
+    expect(server.eventStore.list()).toHaveLength(0);
+
+    client.close();
   });
 });
