@@ -428,4 +428,70 @@ describe('debug server', () => {
 
     client.close();
   });
+
+  it('pushes a new event to a connected UI client in real time', async () => {
+    const server = await startDebugServer({ port: 0, token: 'test-token' });
+    servers.push(server);
+    const address = server.server.address();
+
+    if (address === null || typeof address === 'string') {
+      throw new Error('Expected the server to listen on a TCP port.');
+    }
+
+    const uiClient = new WebSocket(`ws://127.0.0.1:${address.port}/ws/ui`);
+    await new Promise<void>((resolve, reject) => {
+      uiClient.once('open', () => resolve());
+      uiClient.once('error', reject);
+    });
+
+    const { client: runtimeClient, accepted } = await establishSession(
+      `ws://127.0.0.1:${address.port}/ws`,
+      {
+        type: 'session.hello',
+        protocolVersion: 1,
+        token: 'test-token',
+        buildId: 'wx-development-001',
+        target: 'wx'
+      }
+    );
+
+    const pushed = new Promise<string>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Timed out waiting for a pushed event.'));
+      }, 2_000);
+
+      uiClient.once('message', (data) => {
+        clearTimeout(timeout);
+        resolve(data.toString());
+      });
+      uiClient.once('error', (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+    });
+
+    runtimeClient.send(
+      JSON.stringify({
+        protocolVersion: 1,
+        eventId: 'event-001',
+        sessionId: accepted.sessionId,
+        buildId: 'wx-development-001',
+        target: 'wx',
+        timestamp: 1_725_000_000_000,
+        priority: EventPriority.Normal,
+        type: 'method',
+        probeId: 'probe-001'
+      })
+    );
+
+    const received = JSON.parse(await pushed);
+
+    expect(received).toEqual({
+      type: 'event',
+      event: expect.objectContaining({ eventId: 'event-001', type: 'method' })
+    });
+
+    uiClient.close();
+    runtimeClient.close();
+  });
 });

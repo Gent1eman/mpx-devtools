@@ -1,7 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
 import websocket from '@fastify/websocket';
-import { DebugEventSchema, PROTOCOL_VERSION, SessionHelloSchema } from '@mpxjs/debug-protocol';
+import {
+  DebugEventSchema,
+  PROTOCOL_VERSION,
+  SessionHelloSchema,
+  type DebugEvent
+} from '@mpxjs/debug-protocol';
+import type WebSocket from 'ws';
 import { EventStore } from './events.js';
 import { createSessionId, SessionManager } from './session.js';
 
@@ -56,6 +62,9 @@ const EVENT_REJECTED = JSON.stringify({
   reason: 'invalid-event'
 });
 
+/** Numeric `readyState` value for an open WebSocket connection. */
+const WEBSOCKET_OPEN = 1;
+
 /** Generates a high-entropy token used to authenticate runtime connections. */
 function generateSessionToken(): string {
   return randomBytes(32).toString('hex');
@@ -88,6 +97,18 @@ export function createDebugServer(options: DebugServerOptions = {}): FastifyInst
   server.register(async (instance) => {
     await instance.register(websocket);
 
+    const uiClients = new Set<WebSocket>();
+
+    function broadcastEvent(event: DebugEvent): void {
+      const payload = JSON.stringify({ type: 'event', event });
+
+      for (const client of uiClients) {
+        if (client.readyState === WEBSOCKET_OPEN) {
+          client.send(payload);
+        }
+      }
+    }
+
     instance.get('/ws', { websocket: true }, (socket) => {
       socket.send(DEBUG_SERVER_WELCOME);
       socket.on('message', (rawMessage) => {
@@ -112,6 +133,7 @@ export function createDebugServer(options: DebugServerOptions = {}): FastifyInst
 
           events.append(parsed.data);
           sessions.touch(now);
+          broadcastEvent(parsed.data);
           return;
         }
 
@@ -151,6 +173,13 @@ export function createDebugServer(options: DebugServerOptions = {}): FastifyInst
 
       socket.on('close', () => {
         sessions.disconnect();
+      });
+    });
+
+    instance.get('/ws/ui', { websocket: true }, (socket) => {
+      uiClients.add(socket);
+      socket.on('close', () => {
+        uiClients.delete(socket);
       });
     });
   });
