@@ -116,34 +116,34 @@ flowchart LR
 
 各层职责如下：
 
-| 层 | 职责 |
-|---|---|
-| 编译插件 | 保存转换来源、插入探针、生成构建清单 |
-| Runtime | 采集页面、组件、参数、状态、异常和调用链 |
-| Server | 管理会话、还原源码、保存时间线、转发控制命令 |
-| UI | 展示页面栈、设备画面、组件树、时间线和变量 |
+| 层       | 职责                                         |
+| -------- | -------------------------------------------- |
+| 编译插件 | 保存转换来源、插入探针、生成构建清单         |
+| Runtime  | 采集页面、组件、参数、状态、异常和调用链     |
+| Server   | 管理会话、还原源码、保存时间线、转发控制命令 |
+| UI       | 展示页面栈、设备画面、组件树、时间线和变量   |
 
 ## 5. 技术栈
 
-| 模块 | 推荐技术 |
-|---|---|
-| 语言 | TypeScript |
-| Monorepo | pnpm workspace |
-| 构建接入 | Webpack Plugin API、webpack-chain |
-| AST | `@babel/parser`、`@babel/traverse`、`@babel/types` |
-| Source Map | `@jridgewell/trace-mapping`、`@jridgewell/gen-mapping` |
-| 本地服务 | Node.js、Fastify |
-| 实时通信 | `ws` |
-| 协议校验 | Zod |
-| 日志 | Pino |
-| Web UI | React、Vite、Zustand |
-| 代码查看 | Monaco Editor |
-| 长列表 | 虚拟列表；高数据量时使用 Canvas |
-| VS Code | Extension API、Webview |
-| 持久化 | MVP 使用内存环形缓冲；后续使用 SQLite |
-| 单元测试 | Vitest |
-| UI E2E | Playwright |
-| Node 包构建 | tsup 或 esbuild |
+| 模块        | 推荐技术                                               |
+| ----------- | ------------------------------------------------------ |
+| 语言        | TypeScript                                             |
+| Monorepo    | pnpm workspace                                         |
+| 构建接入    | Webpack Plugin API、webpack-chain                      |
+| AST         | `@babel/parser`、`@babel/traverse`、`@babel/types`     |
+| Source Map  | `@jridgewell/trace-mapping`、`@jridgewell/gen-mapping` |
+| 本地服务    | Node.js、Fastify                                       |
+| 实时通信    | `ws`                                                   |
+| 协议校验    | Zod                                                    |
+| 日志        | Pino                                                   |
+| Web UI      | React、Vite、Zustand                                   |
+| 代码查看    | Monaco Editor                                          |
+| 长列表      | 虚拟列表；高数据量时使用 Canvas                        |
+| VS Code     | Extension API、Webview                                 |
+| 持久化      | MVP 使用内存环形缓冲；后续使用 SQLite                  |
+| 单元测试    | Vitest                                                 |
+| UI E2E      | Playwright                                             |
+| Node 包构建 | tsup 或 esbuild                                        |
 
 第一阶段不引入 Electron、GraphQL、微服务、云数据库和分布式追踪系统。
 
@@ -203,19 +203,21 @@ Mpx CLI 已支持通过 `chainWebpack` 修改配置。第一版通过独立 Webp
 
 ```js
 // mpx.config.js
-const { defineConfig } = require('@vue/cli-service')
-const { MpxDebugPlugin } = require('@mpxjs/debug-webpack-plugin')
+const { defineConfig } = require('@vue/cli-service');
+const { MpxDebugPlugin } = require('@mpxjs/debug-webpack-plugin');
 
 module.exports = defineConfig({
   chainWebpack(config) {
     if (process.env.MPX_DEBUG === 'true') {
-      config.plugin('mpx-debug').use(MpxDebugPlugin, [{
-        target: process.env.MPX_TARGET || 'wx',
-        serverPort: 4399
-      }])
+      config.plugin('mpx-debug').use(MpxDebugPlugin, [
+        {
+          target: process.env.MPX_TARGET || 'wx',
+          serverPort: 4399
+        }
+      ]);
     }
   }
-})
+});
 ```
 
 ### 8.2 Source Map 策略
@@ -223,7 +225,7 @@ module.exports = defineConfig({
 调试模式优先使用：
 
 ```js
-config.devtool('hidden-source-map')
+config.devtool('hidden-source-map');
 ```
 
 原因：
@@ -260,16 +262,19 @@ target + 配置哈希 + 入口哈希 + 编译序号
 
 ```ts
 interface DebugBuildManifest {
-  protocolVersion: number
-  buildId: string
-  target: 'wx' | 'ios' | 'android' | 'harmony'
-  createdAt: number
-  files: Record<string, {
-    sourceId: string
-    contentHash: string
-    outputs: string[]
-    sourceMaps: string[]
-  }>
+  protocolVersion: number;
+  buildId: string;
+  target: 'wx' | 'ios' | 'android' | 'harmony';
+  createdAt: number;
+  files: Record<
+    string,
+    {
+      sourceId: string;
+      contentHash: string;
+      outputs: string[];
+      sourceMaps: string[];
+    }
+  >;
 }
 ```
 
@@ -300,28 +305,28 @@ type SemanticKind =
   | 'computed'
   | 'watch'
   | 'set-data'
-  | 'render'
+  | 'render';
 ```
 
 ### 9.2 映射结构
 
 ```ts
 interface SemanticEntry {
-  id: string
-  kind: SemanticKind
-  name?: string
-  parentId?: string
+  id: string;
+  kind: SemanticKind;
+  name?: string;
+  parentId?: string;
   source: {
-    file: string
-    start: { line: number; column: number }
-    end: { line: number; column: number }
-  }
+    file: string;
+    start: { line: number; column: number };
+    end: { line: number; column: number };
+  };
   generated?: Array<{
-    target: string
-    file: string
-    start?: { line: number; column: number }
-    end?: { line: number; column: number }
-  }>
+    target: string;
+    file: string;
+    start?: { line: number; column: number };
+    end?: { line: number; column: number };
+  }>;
 }
 ```
 
@@ -349,9 +354,9 @@ AST 指纹需要忽略空白、注释和行号。
 
 ```ts
 interface TemplateDebugHook {
-  onNode(node: TemplateNode): void
-  onExpression(expression: ExpressionNode): void
-  onEvent(event: EventBinding): void
+  onNode(node: TemplateNode): void;
+  onExpression(expression: ExpressionNode): void;
+  onEvent(event: EventBinding): void;
 }
 ```
 
@@ -370,23 +375,23 @@ interface TemplateDebugHook {
 页面状态定义为：
 
 ```ts
-type PageState = 'visible' | 'hidden' | 'unloaded'
+type PageState = 'visible' | 'hidden' | 'unloaded';
 ```
 
 页面模型：
 
 ```ts
 interface DebugPageInstance {
-  pageInstanceId: string
-  route: string
-  title?: string
-  state: PageState
-  stackIndex: number
-  createdAt: number
-  shownAt?: number
-  hiddenAt?: number
-  unloadedAt?: number
-  rootComponentId?: string
+  pageInstanceId: string;
+  route: string;
+  title?: string;
+  state: PageState;
+  stackIndex: number;
+  createdAt: number;
+  shownAt?: number;
+  hiddenAt?: number;
+  unloadedAt?: number;
+  rootComponentId?: string;
 }
 ```
 
@@ -410,13 +415,13 @@ UI 左侧显示页面栈，并明确标识：
 
 ```ts
 interface DebugComponentInstance {
-  componentInstanceId: string
-  pageInstanceId: string
-  parentComponentId?: string
-  sourceId: string
-  name: string
-  createdAt: number
-  destroyedAt?: number
+  componentInstanceId: string;
+  pageInstanceId: string;
+  parentComponentId?: string;
+  sourceId: string;
+  name: string;
+  createdAt: number;
+  destroyedAt?: number;
 }
 ```
 
@@ -439,14 +444,14 @@ interface DebugComponentInstance {
 
 ```ts
 interface ComponentStateSearchHit {
-  pageInstanceId: string
-  componentInstanceId: string
-  sourceId: string
-  sourceFile: string
-  stateKind: 'data' | 'props' | 'computed'
-  path: string
-  value: SerializedValue
-  capturedAt: number
+  pageInstanceId: string;
+  componentInstanceId: string;
+  sourceId: string;
+  sourceFile: string;
+  stateKind: 'data' | 'props' | 'computed';
+  path: string;
+  value: SerializedValue;
+  capturedAt: number;
 }
 ```
 
@@ -492,22 +497,22 @@ async submitOrder(order) {
 运行时无法凭空读取尚未暴露的词法局部变量。任意局部变量需要 AST 插桩：
 
 ```js
-const coupon = this.selectedCoupon
-const finalPrice = calculatePrice(order, coupon)
+const coupon = this.selectedCoupon;
+const finalPrice = calculatePrice(order, coupon);
 
 __MPX_DEBUG__.snapshot('probe_abc', {
   coupon,
   finalPrice,
   order
-})
+});
 ```
 
 因此提供两种模式：
 
-| 模式 | 是否需要重新编译 | 能力 |
-|---|---:|---|
-| 方法级 Logpoint | 否 | 参数、this、状态、调用栈 |
-| 行级数据探针 | 首次需要局部增量编译 | 当前作用域内指定变量 |
+| 模式            |     是否需要重新编译 | 能力                     |
+| --------------- | -------------------: | ------------------------ |
+| 方法级 Logpoint |                   否 | 参数、this、状态、调用栈 |
+| 行级数据探针    | 首次需要局部增量编译 | 当前作用域内指定变量     |
 
 ### 12.4 条件探针
 
@@ -519,7 +524,7 @@ type ProbeCondition =
   | { path: string; operator: 'gt' | 'gte' | 'lt' | 'lte'; value: number }
   | { path: string; operator: 'contains'; value: string }
   | { all: ProbeCondition[] }
-  | { any: ProbeCondition[] }
+  | { any: ProbeCondition[] };
 ```
 
 ## 13. 参数、变量和状态快照
@@ -536,14 +541,14 @@ type ProbeCondition =
 
 ```ts
 interface VariableSnapshot {
-  snapshotId: string
-  capturedAt: number
-  probeId: string
-  arguments?: Record<string, SerializedValue>
-  locals?: Record<string, SerializedValue>
-  componentState?: Record<string, SerializedValue>
-  returnValue?: SerializedValue
-  error?: SerializedValue
+  snapshotId: string;
+  capturedAt: number;
+  probeId: string;
+  arguments?: Record<string, SerializedValue>;
+  locals?: Record<string, SerializedValue>;
+  componentState?: Record<string, SerializedValue>;
+  returnValue?: SerializedValue;
+  error?: SerializedValue;
 }
 ```
 
@@ -593,13 +598,13 @@ password、passwd、token、authorization、cookie、secret、session
 
 ```ts
 interface MpxDebugRuntime {
-  initialize(config: RuntimeConfig): void
-  emit(event: RuntimeEvent): void
-  hit(probeId: string, thisValue: unknown, args: IArguments): void
-  snapshot(probeId: string, values: Record<string, unknown>): void
-  captureError(error: unknown, context?: unknown): void
-  updateProbeConfig(config: ProbeConfig): void
-  dispose(): void
+  initialize(config: RuntimeConfig): void;
+  emit(event: RuntimeEvent): void;
+  hit(probeId: string, thisValue: unknown, args: IArguments): void;
+  snapshot(probeId: string, values: Record<string, unknown>): void;
+  captureError(error: unknown, context?: unknown): void;
+  updateProbeConfig(config: ProbeConfig): void;
+  dispose(): void;
 }
 ```
 
@@ -657,13 +662,13 @@ enum EventPriority {
 
 ```ts
 interface DebugEvent {
-  protocolVersion: number
-  eventId: string
-  sessionId: string
-  buildId: string
-  target: 'wx' | 'ios' | 'android' | 'harmony'
-  timestamp: number
-  priority: EventPriority
+  protocolVersion: number;
+  eventId: string;
+  sessionId: string;
+  buildId: string;
+  target: 'wx' | 'ios' | 'android' | 'harmony';
+  timestamp: number;
+  priority: EventPriority;
   type:
     | 'page'
     | 'component'
@@ -674,12 +679,12 @@ interface DebugEvent {
     | 'network'
     | 'error'
     | 'render'
-    | 'probe'
-  pageInstanceId?: string
-  componentInstanceId?: string
-  semanticId?: string
-  probeId?: string
-  payload?: unknown
+    | 'probe';
+  pageInstanceId?: string;
+  componentInstanceId?: string;
+  semanticId?: string;
+  probeId?: string;
+  payload?: unknown;
 }
 ```
 
@@ -790,19 +795,19 @@ trace.mpx-trace
 
 ```ts
 interface ResolvedStackFrame {
-  functionName?: string
+  functionName?: string;
   source: {
-    file: string
-    line: number
-    column: number
-  }
+    file: string;
+    line: number;
+    column: number;
+  };
   generated?: {
-    file: string
-    line: number
-    column: number
-  }
-  semanticId?: string
-  internal: boolean
+    file: string;
+    line: number;
+    column: number;
+  };
+  semanticId?: string;
+  internal: boolean;
 }
 ```
 
@@ -933,30 +938,30 @@ RN Source Map 必须与实际 Bundle 精确匹配，因此继续使用 `buildId`
 
 ```ts
 interface MpxDebugOptions {
-  enabled?: boolean
-  target?: 'wx' | 'ios' | 'android' | 'harmony'
+  enabled?: boolean;
+  target?: 'wx' | 'ios' | 'android' | 'harmony';
   server?: {
-    host?: string
-    port?: number
-    open?: boolean
-  }
+    host?: string;
+    port?: number;
+    open?: boolean;
+  };
   probes?: {
-    lifecycle?: boolean
-    methods?: boolean
-    setData?: boolean
-    network?: boolean
-    render?: boolean
-  }
+    lifecycle?: boolean;
+    methods?: boolean;
+    setData?: boolean;
+    network?: boolean;
+    render?: boolean;
+  };
   capture?: {
-    arguments?: boolean
-    componentState?: boolean
-    stack?: boolean
-    maxDepth?: number
-    maxEventBytes?: number
-  }
-  redact?: Array<string | RegExp>
-  include?: Array<string | RegExp>
-  exclude?: Array<string | RegExp>
+    arguments?: boolean;
+    componentState?: boolean;
+    stack?: boolean;
+    maxDepth?: number;
+    maxEventBytes?: number;
+  };
+  redact?: Array<string | RegExp>;
+  include?: Array<string | RegExp>;
+  exclude?: Array<string | RegExp>;
 }
 ```
 
@@ -984,16 +989,16 @@ interface MpxDebugOptions {
 
 ## 23. 性能预算
 
-| 指标 | 目标 |
-|---|---:|
-| 首次编译额外耗时 | 小于 15% |
-| 增量编译额外耗时 | 小于 10% |
-| 未命中探针运行时开销 | 小于 2% |
-| 默认调试 Runtime 体积 | 小于 100 KB |
-| 单批事件体积 | 小于 64 KB |
-| UI 流畅处理事件数 | 至少 10,000 条 |
-| 业务 JS 源码映射正确率 | 大于 99% |
-| 生产构建调试代码残留 | 0 |
+| 指标                   |           目标 |
+| ---------------------- | -------------: |
+| 首次编译额外耗时       |       小于 15% |
+| 增量编译额外耗时       |       小于 10% |
+| 未命中探针运行时开销   |        小于 2% |
+| 默认调试 Runtime 体积  |    小于 100 KB |
+| 单批事件体积           |     小于 64 KB |
+| UI 流畅处理事件数      | 至少 10,000 条 |
+| 业务 JS 源码映射正确率 |       大于 99% |
+| 生产构建调试代码残留   |              0 |
 
 ## 24. 安全与隐私
 
@@ -1055,15 +1060,15 @@ computed-watch.mpx
 
 ## 26. 技术风险
 
-| 风险 | 影响 | 应对 |
-|---|---|---|
-| 多阶段 Source Map 丢失 | 无法准确定位源码 | 每阶段验证 map，并建立黄金测试 |
-| 模板映射无法从外围获得 | 模板事件无法准确定位 | 为 Mpx 编译器增加调试元数据钩子 |
-| 插桩改变业务语义 | 引入新的错误 | 默认只插函数入口，逐步扩大范围 |
-| 微信真机无法连接本机 | 真机调试不可用 | 局域网、adb/iOS 端口转发或代理 |
-| 高频事件造成卡顿 | 调试器反而降低开发效率 | 批处理、采样、优先级和环形缓冲 |
-| 大对象泄露敏感信息 | 隐私和安全风险 | 限深、限长、脱敏、默认不采参数 |
-| 运行实例与 Source Map 不匹配 | 映射到错误源码 | 强制校验 `buildId` |
+| 风险                         | 影响                   | 应对                            |
+| ---------------------------- | ---------------------- | ------------------------------- |
+| 多阶段 Source Map 丢失       | 无法准确定位源码       | 每阶段验证 map，并建立黄金测试  |
+| 模板映射无法从外围获得       | 模板事件无法准确定位   | 为 Mpx 编译器增加调试元数据钩子 |
+| 插桩改变业务语义             | 引入新的错误           | 默认只插函数入口，逐步扩大范围  |
+| 微信真机无法连接本机         | 真机调试不可用         | 局域网、adb/iOS 端口转发或代理  |
+| 高频事件造成卡顿             | 调试器反而降低开发效率 | 批处理、采样、优先级和环形缓冲  |
+| 大对象泄露敏感信息           | 隐私和安全风险         | 限深、限长、脱敏、默认不采参数  |
+| 运行实例与 Source Map 不匹配 | 映射到错误源码         | 强制校验 `buildId`              |
 
 ## 27. 分阶段交付
 
