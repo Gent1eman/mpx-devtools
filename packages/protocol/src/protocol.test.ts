@@ -4,6 +4,7 @@ import {
   DebugEventSchema,
   EventPriority,
   isSupportedProtocolVersion,
+  PageEventSchema,
   PROTOCOL_VERSION,
   SessionHelloSchema,
   type ProtocolVersion,
@@ -76,6 +77,29 @@ describe('debug event', () => {
       delete eventWithoutRequiredField[requiredField];
 
       expect(DebugEventSchema.safeParse(eventWithoutRequiredField).success).toBe(false);
+    }
+  );
+});
+
+describe('page event', () => {
+  const pageEventBase = {
+    protocolVersion: PROTOCOL_VERSION,
+    eventId: 'event-page-001',
+    sessionId: 'session-001',
+    buildId: 'wx-development-001',
+    target: 'wx',
+    timestamp: 1_725_000_000_000,
+    priority: EventPriority.Normal,
+    pageInstanceId: 'page-001',
+    payload: {
+      route: '/pages/index'
+    }
+  } as const;
+
+  it.each(['page.create', 'page.show', 'page.hide', 'page.unload'] as const)(
+    'accepts %s',
+    (type) => {
+      expect(PageEventSchema.safeParse({ ...pageEventBase, type }).success).toBe(true);
     }
   );
 });

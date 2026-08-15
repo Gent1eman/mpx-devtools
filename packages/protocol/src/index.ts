@@ -76,3 +76,24 @@ export const DebugEventSchema = z
   .strict();
 
 export type DebugEvent = z.infer<typeof DebugEventSchema>;
+
+/** Page lifecycle event names emitted by the runtime. */
+export const PageEventTypeSchema = z.enum(['page.create', 'page.show', 'page.hide', 'page.unload']);
+
+export type PageEventType = z.infer<typeof PageEventTypeSchema>;
+
+/** Page identity carried by every page lifecycle event. */
+export const PageEventPayloadSchema = z
+  .object({
+    route: z.string().trim().min(1)
+  })
+  .strict();
+
+/** Base event refined for page lifecycle notifications. */
+export const PageEventSchema = DebugEventSchema.extend({
+  type: PageEventTypeSchema,
+  pageInstanceId: z.string().trim().min(1),
+  payload: PageEventPayloadSchema
+});
+
+export type PageEvent = z.infer<typeof PageEventSchema>;
