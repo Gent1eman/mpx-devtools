@@ -162,9 +162,10 @@
 
 ### T0205：实现随机会话 Token
 
-- [ ] Server 启动时生成随机 Token。
+- [x] Server 启动时生成随机 Token。
 - 验收：错误 Token 无法建立会话。
 - 依赖：T0204。
+- 实现说明（2026-08-15）：Server 创建时生成 256 位随机十六进制 Token（支持 `options.token` 注入），握手时校验 `session.hello` 中的 `token` 字段；协议 Schema 新增必填 `token`。错误 Token 返回 `session.rejected`（reason `invalid-session-token`）并关闭连接，每次启动生成的 Token 互不相同。
 
 ### T0206：实现单会话内存管理
 
@@ -920,7 +921,7 @@ POC 最终只证明一件事：
 ## 20. 当前进度
 
 ```text
-当前任务：等待 T0204 验收
-最后完成：T0204 实现会话握手校验
-下一候选：T0202 提供静态首页
+当前任务：等待 T0205 验收
+最后完成：T0205 实现随机会话 Token
+下一候选：T0206 实现单会话内存管理
 ```

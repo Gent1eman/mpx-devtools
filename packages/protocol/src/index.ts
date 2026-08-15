@@ -26,6 +26,7 @@ export const SessionHelloSchema = z
   .object({
     type: z.literal('session.hello'),
     protocolVersion: z.literal(PROTOCOL_VERSION),
+    token: z.string().trim().min(1),
     buildId: z.string().trim().min(1),
     target: DebugTargetSchema
   })

@@ -34,6 +34,7 @@ describe('session.hello', () => {
   const validHello = {
     type: 'session.hello',
     protocolVersion: PROTOCOL_VERSION,
+    token: 'debug-token-001',
     buildId: 'wx-development-001',
     target: 'wx'
   } as const;
@@ -42,10 +43,26 @@ describe('session.hello', () => {
     expect(SessionHelloSchema.safeParse(validHello).success).toBe(true);
   });
 
+  it('rejects a handshake without token', () => {
+    const helloWithoutToken = {
+      type: validHello.type,
+      protocolVersion: validHello.protocolVersion,
+      buildId: validHello.buildId,
+      target: validHello.target
+    };
+
+    expect(SessionHelloSchema.safeParse(helloWithoutToken).success).toBe(false);
+  });
+
+  it('rejects a blank token', () => {
+    expect(SessionHelloSchema.safeParse({ ...validHello, token: '  ' }).success).toBe(false);
+  });
+
   it('rejects a handshake without buildId', () => {
     const helloWithoutBuildId = {
       type: validHello.type,
       protocolVersion: validHello.protocolVersion,
+      token: validHello.token,
       target: validHello.target
     };
 

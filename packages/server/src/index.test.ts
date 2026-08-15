@@ -109,7 +109,7 @@ describe('debug server', () => {
   });
 
   it('accepts a valid session.hello handshake', async () => {
-    const server = await startDebugServer({ port: 0 });
+    const server = await startDebugServer({ port: 0, token: 'test-token' });
     servers.push(server);
     const address = server.server.address();
 
@@ -121,14 +121,35 @@ describe('debug server', () => {
       exchangeSessionHello(`ws://127.0.0.1:${address.port}/ws`, {
         type: 'session.hello',
         protocolVersion: 1,
+        token: 'test-token',
         buildId: 'wx-development-001',
         target: 'wx'
       })
     ).resolves.toBe(JSON.stringify({ type: 'session.accepted' }));
   });
 
+  it('rejects a session.hello handshake with the wrong token', async () => {
+    const server = await startDebugServer({ port: 0, token: 'test-token' });
+    servers.push(server);
+    const address = server.server.address();
+
+    if (address === null || typeof address === 'string') {
+      throw new Error('Expected the server to listen on a TCP port.');
+    }
+
+    await expect(
+      exchangeSessionHello(`ws://127.0.0.1:${address.port}/ws`, {
+        type: 'session.hello',
+        protocolVersion: 1,
+        token: 'wrong-token',
+        buildId: 'wx-development-001',
+        target: 'wx'
+      })
+    ).resolves.toBe(JSON.stringify({ type: 'session.rejected', reason: 'invalid-session-token' }));
+  });
+
   it('rejects a session.hello handshake with an unsupported protocol version', async () => {
-    const server = await startDebugServer({ port: 0 });
+    const server = await startDebugServer({ port: 0, token: 'test-token' });
     servers.push(server);
     const address = server.server.address();
 
@@ -140,9 +161,21 @@ describe('debug server', () => {
       exchangeSessionHello(`ws://127.0.0.1:${address.port}/ws`, {
         type: 'session.hello',
         protocolVersion: 0,
+        token: 'test-token',
         buildId: 'wx-development-001',
         target: 'wx'
       })
     ).resolves.toBe(JSON.stringify({ type: 'session.rejected', reason: 'invalid-session-hello' }));
+  });
+
+  it('generates a unique session token for every server instance', async () => {
+    const firstServer = await startDebugServer({ port: 0 });
+    servers.push(firstServer);
+    const secondServer = await startDebugServer({ port: 0 });
+    servers.push(secondServer);
+
+    expect(firstServer.debugToken).toBeTypeOf('string');
+    expect(firstServer.debugToken.length).toBeGreaterThanOrEqual(32);
+    expect(firstServer.debugToken).not.toBe(secondServer.debugToken);
   });
 });

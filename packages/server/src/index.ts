@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
 import websocket from '@fastify/websocket';
 import { PROTOCOL_VERSION, SessionHelloSchema } from '@mpxjs/debug-protocol';
@@ -8,11 +9,18 @@ export interface DebugServerOptions {
   host?: string;
   port?: number;
   version?: string;
+  token?: string;
 }
 
 export interface DebugServerHealth {
   status: 'running';
   version: string;
+}
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    debugToken: string;
+  }
 }
 
 const DEBUG_HOME_HTML = `<!doctype html>
@@ -37,11 +45,23 @@ const SESSION_REJECTED = JSON.stringify({
   type: 'session.rejected',
   reason: 'invalid-session-hello'
 });
+const SESSION_TOKEN_REJECTED = JSON.stringify({
+  type: 'session.rejected',
+  reason: 'invalid-session-token'
+});
+
+/** Generates a high-entropy token used to authenticate runtime connections. */
+function generateSessionToken(): string {
+  return randomBytes(32).toString('hex');
+}
 
 /** Creates the local debug HTTP server without opening a listening socket. */
 export function createDebugServer(options: DebugServerOptions = {}): FastifyInstance {
   const server = Fastify({ logger: false });
   const version = options.version ?? DEBUG_SERVER_VERSION;
+  const token = options.token ?? generateSessionToken();
+
+  server.decorate('debugToken', token);
 
   server.get('/', async (_request, reply) => {
     return reply.type('text/html; charset=utf-8').send(DEBUG_HOME_HTML);
@@ -73,6 +93,12 @@ export function createDebugServer(options: DebugServerOptions = {}): FastifyInst
         if (!hello.success || hello.data.protocolVersion !== PROTOCOL_VERSION) {
           socket.send(SESSION_REJECTED);
           socket.close(1008, 'Invalid session hello.');
+          return;
+        }
+
+        if (hello.data.token !== token) {
+          socket.send(SESSION_TOKEN_REJECTED);
+          socket.close(1008, 'Invalid session token.');
           return;
         }
 
