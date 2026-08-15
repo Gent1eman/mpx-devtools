@@ -83,6 +83,8 @@ export function createDebugServer(options: DebugServerOptions = {}): FastifyInst
 
   server.get('/api/session', async () => sessions.get());
 
+  server.get('/api/events', async () => events.list());
+
   server.register(async (instance) => {
     await instance.register(websocket);
 

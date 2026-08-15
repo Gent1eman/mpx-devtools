@@ -372,4 +372,60 @@ describe('debug server', () => {
 
     client.close();
   });
+
+  it('returns an empty list from GET /api/events before any events arrive', async () => {
+    const server = createDebugServer();
+
+    const response = await server.inject({ method: 'GET', url: '/api/events' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual([]);
+
+    await server.close();
+  });
+
+  it('returns buffered events in order from GET /api/events', async () => {
+    const server = await startDebugServer({ port: 0, token: 'test-token' });
+    servers.push(server);
+    const address = server.server.address();
+
+    if (address === null || typeof address === 'string') {
+      throw new Error('Expected the server to listen on a TCP port.');
+    }
+
+    const { client, accepted } = await establishSession(`ws://127.0.0.1:${address.port}/ws`, {
+      type: 'session.hello',
+      protocolVersion: 1,
+      token: 'test-token',
+      buildId: 'wx-development-001',
+      target: 'wx'
+    });
+
+    const baseEvent = {
+      protocolVersion: 1,
+      sessionId: accepted.sessionId,
+      buildId: 'wx-development-001',
+      target: 'wx',
+      timestamp: 1_725_000_000_000,
+      priority: EventPriority.Normal,
+      type: 'method'
+    };
+
+    client.send(JSON.stringify({ ...baseEvent, eventId: 'event-001' }));
+    client.send(JSON.stringify({ ...baseEvent, eventId: 'event-002' }));
+
+    await vi.waitFor(() => {
+      expect(server.eventStore.list()).toHaveLength(2);
+    });
+
+    const response = await server.inject({ method: 'GET', url: '/api/events' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().map((event: { eventId: string }) => event.eventId)).toEqual([
+      'event-001',
+      'event-002'
+    ]);
+
+    client.close();
+  });
 });
