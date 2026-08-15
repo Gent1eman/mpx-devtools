@@ -13,10 +13,30 @@ export interface DebugServerHealth {
   version: string;
 }
 
+const DEBUG_HOME_HTML = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mpx DevTools</title>
+  </head>
+  <body>
+    <main>
+      <h1>Mpx DevTools</h1>
+      <p>Local debug server is running.</p>
+      <p>Health endpoint: <a href="/health">/health</a></p>
+    </main>
+  </body>
+</html>`;
+
 /** Creates the local debug HTTP server without opening a listening socket. */
 export function createDebugServer(options: DebugServerOptions = {}): FastifyInstance {
   const server = Fastify({ logger: false });
   const version = options.version ?? DEBUG_SERVER_VERSION;
+
+  server.get('/', async (_request, reply) => {
+    return reply.type('text/html; charset=utf-8').send(DEBUG_HOME_HTML);
+  });
 
   server.get('/health', async (): Promise<DebugServerHealth> => ({
     status: 'running',

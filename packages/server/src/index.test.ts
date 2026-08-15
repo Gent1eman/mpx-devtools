@@ -10,6 +10,18 @@ describe('debug server', () => {
     servers.length = 0;
   });
 
+  it('returns a minimal debug home page from GET /', async () => {
+    const server = createDebugServer();
+
+    const response = await server.inject({ method: 'GET', url: '/' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toContain('text/html');
+    expect(response.body).toContain('<h1>Mpx DevTools</h1>');
+
+    await server.close();
+  });
+
   it('returns its version and running status from GET /health', async () => {
     const server = createDebugServer({ version: 'test-version' });
 
