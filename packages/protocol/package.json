@@ -1,5 +1,8 @@
 {
   "name": "@mpxjs/debug-protocol",
   "version": "0.0.0",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "zod": "^3.24.2"
+  }
 }
