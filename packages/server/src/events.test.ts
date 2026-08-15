@@ -42,4 +42,42 @@ describe('EventStore', () => {
 
     expect(events.list()).toHaveLength(1);
   });
+
+  it('overwrites the oldest event once capacity is exceeded', () => {
+    const events = new EventStore(3);
+    const first = makeEvent('event-001');
+    const second = makeEvent('event-002');
+    const third = makeEvent('event-003');
+    const fourth = makeEvent('event-004');
+
+    events.append(first);
+    events.append(second);
+    events.append(third);
+    events.append(fourth);
+
+    expect(events.list()).toEqual([second, third, fourth]);
+  });
+
+  it('keeps dropping the oldest event for every append beyond capacity', () => {
+    const events = new EventStore(2);
+    const first = makeEvent('event-001');
+    const second = makeEvent('event-002');
+    const third = makeEvent('event-003');
+    const fourth = makeEvent('event-004');
+    const fifth = makeEvent('event-005');
+
+    events.append(first);
+    events.append(second);
+    events.append(third);
+    events.append(fourth);
+    events.append(fifth);
+
+    expect(events.list()).toEqual([fourth, fifth]);
+  });
+
+  it('rejects a non-positive or non-integer capacity', () => {
+    expect(() => new EventStore(0)).toThrow();
+    expect(() => new EventStore(-1)).toThrow();
+    expect(() => new EventStore(1.5)).toThrow();
+  });
 });
