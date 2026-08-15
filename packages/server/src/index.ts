@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from 'fastify';
+import websocket from '@fastify/websocket';
 
 export const DEBUG_SERVER_VERSION = '0.0.0';
 
@@ -29,6 +30,8 @@ const DEBUG_HOME_HTML = `<!doctype html>
   </body>
 </html>`;
 
+const DEBUG_SERVER_WELCOME = JSON.stringify({ type: 'server.welcome' });
+
 /** Creates the local debug HTTP server without opening a listening socket. */
 export function createDebugServer(options: DebugServerOptions = {}): FastifyInstance {
   const server = Fastify({ logger: false });
@@ -42,6 +45,14 @@ export function createDebugServer(options: DebugServerOptions = {}): FastifyInst
     status: 'running',
     version
   }));
+
+  server.register(async (instance) => {
+    await instance.register(websocket);
+
+    instance.get('/ws', { websocket: true }, (socket) => {
+      socket.send(DEBUG_SERVER_WELCOME);
+    });
+  });
 
   return server;
 }

@@ -148,9 +148,10 @@
 
 ### T0203：启动 WebSocket Gateway
 
-- [ ] 在 Server 上提供 WebSocket 连接。
+- [x] 在 Server 上提供 WebSocket 连接。
 - 验收：测试客户端连接成功并收到欢迎消息。
 - 依赖：T0201。
+- 实现说明（2026-08-15）：新增 `/ws` WebSocket Gateway，连接成功后发送 `server.welcome`；使用真实 WebSocket 客户端完成连接与消息测试。
 
 ### T0204：实现会话握手校验
 
@@ -918,7 +919,7 @@ POC 最终只证明一件事：
 ## 20. 当前进度
 
 ```text
-当前任务：等待 T0202 验收
-最后完成：T0202 提供静态首页
+当前任务：等待 T0203 验收
+最后完成：T0203 启动 WebSocket Gateway
 下一候选：T0202 提供静态首页
 ```
