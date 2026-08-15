@@ -142,3 +142,27 @@ export const VariableSnapshotSchema = z
   .strict();
 
 export type VariableSnapshot = z.infer<typeof VariableSnapshotSchema>;
+
+/** Snapshot fields that a method probe may collect when enabled. */
+export const ProbeCaptureOptionsSchema = z
+  .object({
+    arguments: z.boolean(),
+    componentState: z.boolean(),
+    stack: z.boolean()
+  })
+  .strict();
+
+export type ProbeCaptureOptions = z.infer<typeof ProbeCaptureOptionsSchema>;
+
+/** Server command that changes capture behavior for one instrumented method probe. */
+export const ProbeUpdateCommandSchema = z
+  .object({
+    type: z.literal('probe.update'),
+    requestId: z.string().trim().min(1),
+    probeId: z.string().trim().min(1),
+    enabled: z.boolean(),
+    capture: ProbeCaptureOptionsSchema
+  })
+  .strict();
+
+export type ProbeUpdateCommand = z.infer<typeof ProbeUpdateCommandSchema>;

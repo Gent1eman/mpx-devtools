@@ -6,6 +6,7 @@ import {
   EventPriority,
   isSupportedProtocolVersion,
   MethodProbeEventSchema,
+  ProbeUpdateCommandSchema,
   PageEventSchema,
   PROTOCOL_VERSION,
   SessionHelloSchema,
@@ -202,4 +203,33 @@ describe('variable snapshot', () => {
   ] as const)('distinguishes %s snapshots', (_kind, value) => {
     expect(VariableSnapshotSchema.safeParse({ ...snapshotBase, ...value }).success).toBe(true);
   });
+});
+
+describe('probe.update command', () => {
+  const validProbeUpdate = {
+    type: 'probe.update',
+    requestId: 'request-001',
+    probeId: 'probe-001',
+    enabled: true,
+    capture: {
+      arguments: true,
+      componentState: true,
+      stack: false
+    }
+  } as const;
+
+  it('accepts a complete probe update command', () => {
+    expect(ProbeUpdateCommandSchema.safeParse(validProbeUpdate).success).toBe(true);
+  });
+
+  it.each(['probeId', 'enabled', 'capture'] as const)(
+    'rejects a command without %s',
+    (requiredField) => {
+      const commandWithoutRequiredField = { ...validProbeUpdate } as Record<string, unknown>;
+
+      delete commandWithoutRequiredField[requiredField];
+
+      expect(ProbeUpdateCommandSchema.safeParse(commandWithoutRequiredField).success).toBe(false);
+    }
+  );
 });
