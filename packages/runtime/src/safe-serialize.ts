@@ -25,16 +25,32 @@ export const UNDEFINED_MARKER = '[Undefined]';
 /** Marker used when reading a property throws. */
 export const ERROR_MARKER = '[Error]';
 
+/** Marker used when a sensitive field is redacted. */
+export const REDACTED_MARKER = '[Redacted]';
+
+/** Default field names redacted during serialization (design §13.2). */
+export const DEFAULT_REDACTED_KEYS = [
+  'password',
+  'passwd',
+  'token',
+  'authorization',
+  'cookie',
+  'secret',
+  'session'
+] as const;
+
 /** A JSON-serializable value produced by safeSerialize. */
 export type SafeSerialized =
   null | boolean | number | string | SafeSerialized[] | { [key: string]: SafeSerialized };
 
-/** Limits applied while serializing (design §13.2). */
+/** Limits and redaction applied while serializing (design §13.2). */
 export interface SafeSerializeOptions {
   maxDepth?: number;
   maxStringLength?: number;
   maxArrayLength?: number;
   maxObjectKeys?: number;
+  /** Field names (matched case-insensitively) whose values are replaced with REDACTED_MARKER. Defaults to DEFAULT_REDACTED_KEYS; pass [] to disable. */
+  redactKeys?: string[];
 }
 
 /** Serializes an unknown value into a JSON-serializable shape without throwing. */
@@ -43,6 +59,9 @@ export function safeSerialize(value: unknown, options: SafeSerializeOptions = {}
   const maxStringLength = options.maxStringLength ?? 2_048;
   const maxArrayLength = options.maxArrayLength ?? 100;
   const maxObjectKeys = options.maxObjectKeys ?? 100;
+  const redactKeys = new Set(
+    (options.redactKeys ?? DEFAULT_REDACTED_KEYS).map((key) => key.toLowerCase())
+  );
   const seen = new WeakSet<object>();
 
   return serialize(value, 0);
@@ -83,6 +102,11 @@ export function safeSerialize(value: unknown, options: SafeSerializeOptions = {}
       if (serializedKeys >= maxObjectKeys) {
         result[TRUNCATED_OBJECT_KEY] = TRUNCATED_MARKER;
         break;
+      }
+      if (redactKeys.has(key.toLowerCase())) {
+        result[key] = REDACTED_MARKER;
+        serializedKeys += 1;
+        continue;
       }
       try {
         result[key] = serialize((current as Record<string, unknown>)[key], depth + 1);

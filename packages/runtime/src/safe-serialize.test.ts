@@ -107,3 +107,41 @@ describe('safeSerialize', () => {
     expect(result).toEqual({ ok: 1, bad: '[Error]' });
   });
 });
+
+describe('safeSerialize redaction', () => {
+  it('redacts default sensitive fields by default', () => {
+    const result = safeSerialize({ token: 'secret-token', password: 'hunter2', name: 'ok' });
+
+    expect(result).toEqual({ token: '[Redacted]', password: '[Redacted]', name: 'ok' });
+    expect(JSON.stringify(result)).not.toContain('secret-token');
+    expect(JSON.stringify(result)).not.toContain('hunter2');
+  });
+
+  it('redacts sensitive fields case-insensitively and recursively', () => {
+    const result = safeSerialize({
+      Token: 'a',
+      user: { password: 'b', nested: { authorization: 'c' } }
+    });
+
+    expect(result).toEqual({
+      Token: '[Redacted]',
+      user: { password: '[Redacted]', nested: { authorization: '[Redacted]' } }
+    });
+  });
+
+  it('replaces the value without serializing the underlying data', () => {
+    const result = safeSerialize({ token: { raw: 'deep-secret', list: ['x'] } });
+
+    expect(result).toEqual({ token: '[Redacted]' });
+  });
+
+  it('supports custom redaction keys and disabling via an empty list', () => {
+    const value = { token: 'secret-token', apiKey: 'key-123' };
+
+    expect(safeSerialize(value, { redactKeys: ['apiKey'] })).toEqual({
+      token: 'secret-token',
+      apiKey: '[Redacted]'
+    });
+    expect(safeSerialize(value, { redactKeys: [] })).toEqual(value);
+  });
+});
