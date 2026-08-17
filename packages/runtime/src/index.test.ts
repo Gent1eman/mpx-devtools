@@ -89,7 +89,7 @@ describe('DebugRuntime lifecycle', () => {
     expect(fake.connect).toHaveBeenCalledTimes(2);
   });
 
-  it('emit is a safe no-op before initialization and after disposal', () => {
+  it('emit never throws, even when not initialized or disposed', () => {
     const fake = makeFakeTransport();
     const runtime = new DebugRuntime(fake.transport);
     const event = makeEvent();
@@ -101,6 +101,41 @@ describe('DebugRuntime lifecycle', () => {
 
     runtime.dispose();
     expect(() => runtime.emit(event)).not.toThrow();
+  });
+});
+
+describe('DebugRuntime event queue', () => {
+  it('queues events when not initialized', () => {
+    const fake = makeFakeTransport();
+    const runtime = new DebugRuntime(fake.transport);
+    const event = makeEvent();
+
+    runtime.emit(event);
+
+    expect(runtime.getPendingEvents()).toEqual([event]);
+  });
+
+  it('queues events after initialize but before the handshake', () => {
+    const fake = makeFakeTransport();
+    const runtime = new DebugRuntime(fake.transport);
+    const event = makeEvent();
+
+    runtime.initialize(config);
+    runtime.emit(event);
+
+    expect(runtime.getPendingEvents()).toEqual([event]);
+    expect(fake.send).not.toHaveBeenCalled();
+  });
+
+  it('clears the pending queue on dispose', () => {
+    const fake = makeFakeTransport();
+    const runtime = new DebugRuntime(fake.transport);
+
+    runtime.initialize(config);
+    runtime.emit(makeEvent());
+    runtime.dispose();
+
+    expect(runtime.getPendingEvents()).toEqual([]);
   });
 });
 

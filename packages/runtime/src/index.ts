@@ -21,6 +21,7 @@ export interface MpxDebugRuntime {
 export class DebugRuntime implements MpxDebugRuntime {
   private config: RuntimeConfig | null = null;
   private sessionId: string | null = null;
+  private readonly pendingEvents: DebugEvent[] = [];
 
   constructor(private readonly transport: DebugTransport) {
     this.transport.onEvent((event) => this.handleEvent(event));
@@ -32,15 +33,15 @@ export class DebugRuntime implements MpxDebugRuntime {
     this.transport.connect(config.serverUrl);
   }
 
-  emit(_event: DebugEvent): void {
-    // Event queueing and batch transport arrive in later tasks.
-    void _event;
+  emit(event: DebugEvent): void {
+    this.pendingEvents.push(event);
   }
 
   dispose(): void {
     this.transport.close();
     this.sessionId = null;
     this.config = null;
+    this.pendingEvents.length = 0;
   }
 
   isInitialized(): boolean {
@@ -50,6 +51,11 @@ export class DebugRuntime implements MpxDebugRuntime {
   /** Returns the session id assigned by the server after a successful handshake. */
   getSessionId(): string | null {
     return this.sessionId;
+  }
+
+  /** Returns the queued events awaiting transport, in insertion order. */
+  getPendingEvents(): DebugEvent[] {
+    return [...this.pendingEvents];
   }
 
   private handleEvent(event: TransportEvent): void {
