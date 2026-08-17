@@ -35,7 +35,7 @@ function makeFakeTransport() {
   };
 }
 
-function makeEvent(): DebugEvent {
+function makeEvent(overrides: Partial<DebugEvent> = {}): DebugEvent {
   return {
     protocolVersion: 1,
     eventId: 'event-001',
@@ -44,7 +44,8 @@ function makeEvent(): DebugEvent {
     target: 'wx',
     timestamp: 1_725_000_000_000,
     priority: EventPriority.Normal,
-    type: 'method'
+    type: 'method',
+    ...overrides
   };
 }
 
@@ -267,5 +268,60 @@ describe('DebugRuntime batch send', () => {
 
     expect(fake.send).toHaveBeenCalledTimes(1);
     expect(runtime.getPendingEvents()).toHaveLength(10);
+  });
+});
+
+describe('DebugRuntime queue capacity', () => {
+  it('keeps error events when the queue overflows', () => {
+    const fake = makeFakeTransport();
+    const runtime = new DebugRuntime(fake.transport, { maxQueueSize: 3 });
+
+    runtime.initialize(config);
+    runtime.emit(makeEvent({ eventId: 'low-1', priority: EventPriority.Low }));
+    runtime.emit(makeEvent({ eventId: 'low-2', priority: EventPriority.Low }));
+    runtime.emit(makeEvent({ eventId: 'err-1', type: 'error' }));
+    expect(runtime.getPendingEvents()).toHaveLength(3);
+
+    runtime.emit(makeEvent({ eventId: 'err-2', type: 'error' }));
+    runtime.emit(makeEvent({ eventId: 'low-3', priority: EventPriority.Low }));
+    runtime.emit(makeEvent({ eventId: 'low-4', priority: EventPriority.Low }));
+
+    const ids = runtime.getPendingEvents().map((event) => event.eventId);
+
+    expect(ids).toContain('err-1');
+    expect(ids).toContain('err-2');
+    expect(ids).toHaveLength(3);
+  });
+
+  it('evicts the lowest-priority event for a higher-priority incoming event', () => {
+    const fake = makeFakeTransport();
+    const runtime = new DebugRuntime(fake.transport, { maxQueueSize: 2 });
+
+    runtime.initialize(config);
+    runtime.emit(makeEvent({ eventId: 'low-1', priority: EventPriority.Low }));
+    runtime.emit(makeEvent({ eventId: 'normal-1', priority: EventPriority.Normal }));
+
+    runtime.emit(makeEvent({ eventId: 'high-1', priority: EventPriority.High }));
+
+    expect(runtime.getPendingEvents().map((event) => event.eventId)).toEqual([
+      'normal-1',
+      'high-1'
+    ]);
+  });
+
+  it('drops an incoming event that is not better than the queue worst', () => {
+    const fake = makeFakeTransport();
+    const runtime = new DebugRuntime(fake.transport, { maxQueueSize: 2 });
+
+    runtime.initialize(config);
+    runtime.emit(makeEvent({ eventId: 'normal-1', priority: EventPriority.Normal }));
+    runtime.emit(makeEvent({ eventId: 'normal-2', priority: EventPriority.Normal }));
+
+    runtime.emit(makeEvent({ eventId: 'low-1', priority: EventPriority.Low }));
+
+    expect(runtime.getPendingEvents().map((event) => event.eventId)).toEqual([
+      'normal-1',
+      'normal-2'
+    ]);
   });
 });

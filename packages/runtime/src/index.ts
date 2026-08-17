@@ -1,4 +1,9 @@
-import { PROTOCOL_VERSION, type DebugEvent, type DebugTarget } from '@mpxjs/debug-protocol';
+import {
+  EventPriority,
+  PROTOCOL_VERSION,
+  type DebugEvent,
+  type DebugTarget
+} from '@mpxjs/debug-protocol';
 import type { DebugTransport, TransportEvent } from './wechat-transport.js';
 
 /** Configuration required to initialize a debug runtime. */
@@ -15,10 +20,14 @@ export const DEFAULT_MAX_BATCH_SIZE = 50;
 /** Default flush interval in milliseconds (design §14.3). */
 export const DEFAULT_FLUSH_INTERVAL_MS = 50;
 
-/** Tunable batch-send options for the runtime. */
+/** Default maximum number of events buffered before the lowest-priority events are dropped (design §14.3). */
+export const DEFAULT_MAX_QUEUE_SIZE = 1_000;
+
+/** Tunable batch-send and queue options for the runtime. */
 export interface DebugRuntimeOptions {
   maxBatchSize?: number;
   flushIntervalMs?: number;
+  maxQueueSize?: number;
 }
 
 /** Core cross-platform debug runtime contract. */
@@ -36,6 +45,7 @@ export class DebugRuntime implements MpxDebugRuntime {
   private readonly pendingEvents: DebugEvent[] = [];
   private readonly maxBatchSize: number;
   private readonly flushIntervalMs: number;
+  private readonly maxQueueSize: number;
   private flushTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
@@ -44,6 +54,7 @@ export class DebugRuntime implements MpxDebugRuntime {
   ) {
     this.maxBatchSize = options.maxBatchSize ?? DEFAULT_MAX_BATCH_SIZE;
     this.flushIntervalMs = options.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS;
+    this.maxQueueSize = options.maxQueueSize ?? DEFAULT_MAX_QUEUE_SIZE;
     this.transport.onEvent((event) => this.handleEvent(event));
   }
 
@@ -55,7 +66,12 @@ export class DebugRuntime implements MpxDebugRuntime {
   }
 
   emit(event: DebugEvent): void {
-    this.pendingEvents.push(event);
+    if (this.pendingEvents.length < this.maxQueueSize) {
+      this.pendingEvents.push(event);
+      return;
+    }
+
+    this.evictFor(event);
   }
 
   dispose(): void {
@@ -155,5 +171,44 @@ export class DebugRuntime implements MpxDebugRuntime {
 
     const batch = this.pendingEvents.splice(0, this.maxBatchSize);
     this.transport.send(JSON.stringify(batch));
+  }
+
+  private evictFor(incoming: DebugEvent): void {
+    const worstIndex = this.findEvictableWorstIndex();
+
+    if (worstIndex === -1) {
+      return;
+    }
+
+    const worst = this.pendingEvents[worstIndex];
+
+    if (this.isProtected(incoming) || incoming.priority <= worst.priority) {
+      this.pendingEvents.splice(worstIndex, 1);
+      this.pendingEvents.push(incoming);
+    }
+  }
+
+  private findEvictableWorstIndex(): number {
+    let worstIndex = -1;
+    let worstPriority = -1;
+
+    for (let index = 0; index < this.pendingEvents.length; index += 1) {
+      const event = this.pendingEvents[index];
+
+      if (this.isProtected(event)) {
+        continue;
+      }
+
+      if (event.priority > worstPriority) {
+        worstPriority = event.priority;
+        worstIndex = index;
+      }
+    }
+
+    return worstIndex;
+  }
+
+  private isProtected(event: DebugEvent): boolean {
+    return event.type === 'error' || event.priority === EventPriority.Critical;
   }
 }
