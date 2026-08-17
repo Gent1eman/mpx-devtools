@@ -9,6 +9,18 @@ export interface RuntimeConfig {
   token: string;
 }
 
+/** Default maximum number of events sent in one WebSocket batch (design §14.3). */
+export const DEFAULT_MAX_BATCH_SIZE = 50;
+
+/** Default flush interval in milliseconds (design §14.3). */
+export const DEFAULT_FLUSH_INTERVAL_MS = 50;
+
+/** Tunable batch-send options for the runtime. */
+export interface DebugRuntimeOptions {
+  maxBatchSize?: number;
+  flushIntervalMs?: number;
+}
+
 /** Core cross-platform debug runtime contract. */
 export interface MpxDebugRuntime {
   initialize(config: RuntimeConfig): void;
@@ -22,12 +34,21 @@ export class DebugRuntime implements MpxDebugRuntime {
   private config: RuntimeConfig | null = null;
   private sessionId: string | null = null;
   private readonly pendingEvents: DebugEvent[] = [];
+  private readonly maxBatchSize: number;
+  private readonly flushIntervalMs: number;
+  private flushTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(private readonly transport: DebugTransport) {
+  constructor(
+    private readonly transport: DebugTransport,
+    options: DebugRuntimeOptions = {}
+  ) {
+    this.maxBatchSize = options.maxBatchSize ?? DEFAULT_MAX_BATCH_SIZE;
+    this.flushIntervalMs = options.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS;
     this.transport.onEvent((event) => this.handleEvent(event));
   }
 
   initialize(config: RuntimeConfig): void {
+    this.stopFlushTimer();
     this.config = config;
     this.sessionId = null;
     this.transport.connect(config.serverUrl);
@@ -38,6 +59,7 @@ export class DebugRuntime implements MpxDebugRuntime {
   }
 
   dispose(): void {
+    this.stopFlushTimer();
     this.transport.close();
     this.sessionId = null;
     this.config = null;
@@ -103,6 +125,33 @@ export class DebugRuntime implements MpxDebugRuntime {
       (message as { type?: unknown }).type === 'session.accepted'
     ) {
       this.sessionId = (message as { sessionId?: unknown }).sessionId as string | null;
+      this.startFlushTimer();
     }
+  }
+
+  private startFlushTimer(): void {
+    if (this.flushTimer !== null) {
+      return;
+    }
+
+    this.flushTimer = setInterval(() => this.flush(), this.flushIntervalMs);
+  }
+
+  private stopFlushTimer(): void {
+    if (this.flushTimer === null) {
+      return;
+    }
+
+    clearInterval(this.flushTimer);
+    this.flushTimer = null;
+  }
+
+  private flush(): void {
+    if (this.sessionId === null || this.pendingEvents.length === 0) {
+      return;
+    }
+
+    const batch = this.pendingEvents.splice(0, this.maxBatchSize);
+    this.transport.send(JSON.stringify(batch));
   }
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EventPriority, type DebugEvent } from '@mpxjs/debug-protocol';
 
 import { DebugRuntime, type RuntimeConfig } from './index.js';
@@ -195,5 +195,54 @@ describe('DebugRuntime handshake', () => {
     fake.emit({ type: 'open' });
 
     expect(fake.send).not.toHaveBeenCalled();
+  });
+});
+
+describe('DebugRuntime batch send', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('sends queued events in batches smaller than the event count', () => {
+    vi.useFakeTimers();
+    const fake = makeFakeTransport();
+    const runtime = new DebugRuntime(fake.transport, { maxBatchSize: 10, flushIntervalMs: 50 });
+
+    runtime.initialize(config);
+    fake.emit({ type: 'open' });
+    fake.emit({
+      type: 'message',
+      data: JSON.stringify({ type: 'session.accepted', sessionId: 'session-123' })
+    });
+
+    for (let i = 0; i < 100; i += 1) {
+      runtime.emit({ ...makeEvent(), eventId: `event-${i}` });
+    }
+
+    vi.advanceTimersByTime(500);
+
+    const batchCalls = fake.send.mock.calls.filter(([data]) => Array.isArray(JSON.parse(data)));
+
+    expect(batchCalls.length).toBeLessThan(100);
+    expect(batchCalls.length).toBe(10);
+    expect(JSON.parse(batchCalls[0][0])).toHaveLength(10);
+  });
+
+  it('does not flush before the handshake completes', () => {
+    vi.useFakeTimers();
+    const fake = makeFakeTransport();
+    const runtime = new DebugRuntime(fake.transport, { maxBatchSize: 10, flushIntervalMs: 50 });
+
+    runtime.initialize(config);
+    fake.emit({ type: 'open' });
+
+    for (let i = 0; i < 10; i += 1) {
+      runtime.emit({ ...makeEvent(), eventId: `event-${i}` });
+    }
+
+    vi.advanceTimersByTime(500);
+
+    expect(fake.send).toHaveBeenCalledTimes(1);
+    expect(runtime.getPendingEvents()).toHaveLength(10);
   });
 });
