@@ -89,6 +89,8 @@ export class DebugRuntime implements MpxDebugRuntime {
       this.sendHello();
     } else if (event.type === 'message') {
       this.handleMessage(event.data);
+    } else if (event.type === 'close') {
+      this.sessionId = null;
     }
   }
 

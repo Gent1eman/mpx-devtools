@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { WeChatTransport, type TransportEvent, type WeChatSocketApi } from './wechat-transport.js';
 
@@ -100,5 +100,55 @@ describe('WeChatTransport', () => {
       { type: 'close', code: 1000, reason: 'done' },
       { type: 'error', error: new Error('boom') }
     ]);
+  });
+});
+
+describe('WeChatTransport reconnect', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('reconnects after an unexpected close with exponential backoff', () => {
+    vi.useFakeTimers();
+    const fake = makeFakeSocket();
+    const transport = new WeChatTransport(fake.socket, { baseDelayMs: 1000, maxDelayMs: 4000 });
+
+    transport.connect('ws://127.0.0.1:4399/ws');
+    expect(fake.connectSocket).toHaveBeenCalledTimes(1);
+
+    fake.emitClose(1006, 'gone');
+    vi.advanceTimersByTime(999);
+    expect(fake.connectSocket).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(1);
+    expect(fake.connectSocket).toHaveBeenCalledTimes(2);
+
+    // the reconnect failed again, so the backoff grows to 2000ms
+    fake.emitClose(1006, 'gone');
+    vi.advanceTimersByTime(1000);
+    expect(fake.connectSocket).toHaveBeenCalledTimes(2);
+
+    vi.advanceTimersByTime(1000);
+    expect(fake.connectSocket).toHaveBeenCalledTimes(3);
+
+    // a successful open resets the backoff to the base delay
+    fake.emitOpen();
+    fake.emitClose(1006, 'gone');
+    vi.advanceTimersByTime(1000);
+    expect(fake.connectSocket).toHaveBeenCalledTimes(4);
+  });
+
+  it('does not reconnect after an explicit close', () => {
+    vi.useFakeTimers();
+    const fake = makeFakeSocket();
+    const transport = new WeChatTransport(fake.socket);
+
+    transport.connect('ws://127.0.0.1:4399/ws');
+    transport.close();
+    fake.emitClose(1000, 'done');
+
+    vi.advanceTimersByTime(60_000);
+
+    expect(fake.connectSocket).toHaveBeenCalledTimes(1);
   });
 });

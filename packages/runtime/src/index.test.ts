@@ -196,6 +196,29 @@ describe('DebugRuntime handshake', () => {
 
     expect(fake.send).not.toHaveBeenCalled();
   });
+
+  it('resets the session on disconnect and re-handshakes after reconnect', () => {
+    const fake = makeFakeTransport();
+    const runtime = new DebugRuntime(fake.transport);
+
+    runtime.initialize(config);
+    fake.emit({ type: 'open' });
+    fake.emit({
+      type: 'message',
+      data: JSON.stringify({ type: 'session.accepted', sessionId: 'session-1' })
+    });
+    expect(runtime.getSessionId()).toBe('session-1');
+
+    fake.emit({ type: 'close', code: 1006, reason: '' });
+    expect(runtime.getSessionId()).toBeNull();
+
+    fake.emit({ type: 'open' });
+    fake.emit({
+      type: 'message',
+      data: JSON.stringify({ type: 'session.accepted', sessionId: 'session-2' })
+    });
+    expect(runtime.getSessionId()).toBe('session-2');
+  });
 });
 
 describe('DebugRuntime batch send', () => {

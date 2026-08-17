@@ -234,9 +234,10 @@
 
 ### T0305：实现断线重连
 
-- [ ] WebSocket 断开后按退避策略重连。
+- [x] WebSocket 断开后按退避策略重连。
 - 验收：重启 Server 后 Runtime 能自动恢复连接。
 - 依赖：T0302。
+- 实现说明（2026-08-15）：`WeChatTransport` 在非主动关闭时按指数退避重连（默认基准 `DEFAULT_RECONNECT_BASE_DELAY_MS = 1000`、上限 `DEFAULT_RECONNECT_MAX_DELAY_MS = 30000`，可注入），`open` 成功重置退避；`DebugRuntime` 收到 `close` 时重置 `sessionId`（暂停 flush、事件继续入队），重连后自动重新握手并在 `session.accepted` 后恢复 flush。真实「重启 Server 恢复连接」需在微信开发者工具中验证。
 
 ### T0306：实现队列容量限制
 
@@ -930,7 +931,7 @@ POC 最终只证明一件事：
 ## 20. 当前进度
 
 ```text
-当前任务：等待 T0304 验收
-最后完成：T0304 实现批量发送
-下一候选：T0305 实现断线重连
+当前任务：等待 T0305 验收
+最后完成：T0305 实现断线重连
+下一候选：T0306 实现队列容量限制
 ```
